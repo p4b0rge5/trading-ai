@@ -71,6 +71,7 @@ class Strategy(Base):
 
     owner = relationship("User", back_populates="strategies")
     backtests = relationship("Backtest", back_populates="strategy", cascade="all, delete-orphan")
+    live_sessions = relationship("LiveSession", back_populates="strategy", cascade="all, delete-orphan", foreign_keys="LiveSession.strategy_id")
 
 
 class Backtest(Base):
@@ -122,7 +123,7 @@ class LiveSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False)
     account_id = Column(Integer, nullable=False)  # MetaApi account ID
     mode = Column(String(10), default="paper")  # "paper" or "live"
     status = Column(String(20), default="running")  # running/stopped/error
