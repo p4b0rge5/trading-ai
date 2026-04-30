@@ -4,6 +4,7 @@ Live trading routes: manage live trading sessions.
 
 import asyncio
 import logging
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -95,12 +96,10 @@ def create_live_session(
     db.refresh(session)
 
     # Start live engine in background
-    from engine.models import StrategySpec
     from engine.live_trading import LiveSession as LiveTradingSession
+    from engine.models import StrategySpec
 
     spec = StrategySpec(**strategy.spec_json)
-    # Attach id for tracking
-    spec.id = strategy.id
 
     api_token = settings.metaapi_api_key or ""
     live = LiveTradingSession(
@@ -112,9 +111,15 @@ def create_live_session(
         mode=request.mode,
     )
 
-    # Store in registry and start
+    # Store in registry and start in background thread
     _active_sessions[session.id] = live
-    asyncio.create_task(live.start())
+    def _run_session():
+        try:
+            asyncio.run(live.start())
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Live session {session.id} crashed: {e}", exc_info=True)
+    threading.Thread(target=_run_session, daemon=True).start()
 
     mode_label = "Paper Trading (yfinance)" if request.mode == "paper" else "Live (MetaApi)"
     return {
@@ -198,7 +203,9 @@ def stop_live_session(
     # Stop engine and close trades
     live = _active_sessions.pop(session_id, None)
     if live:
-        asyncio.create_task(live.stop())
+        def _stop_session():
+            asyncio.run(live.stop())
+        threading.Thread(target=_stop_session, daemon=True).start()
 
     session.status = "stopped"
     session.end_time = __import__("datetime").datetime.utcnow()
