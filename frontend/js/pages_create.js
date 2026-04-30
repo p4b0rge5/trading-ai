@@ -116,29 +116,29 @@ async function doCreate() {
             </div>
 
             <div class="stats-grid" style="margin-bottom:0">
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Retorno</div>
-                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}" style="font-size:22px">${formatPct(bt.total_return_pct)}</div>
+                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}" class="">${formatPct(bt.total_return_pct)}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Win Rate</div>
-                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" style="font-size:22px">${formatPct(bt.win_rate * 100)}</div>
+                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" class="">${formatPct(bt.win_rate * 100)}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Trades</div>
-                    <div class="stat-value accent" style="font-size:22px">${bt.total_trades}</div>
+                    <div class="stat-value accent" class="">${bt.total_trades}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Max Drawdown</div>
-                    <div class="stat-value red" style="font-size:22px">${formatPct(bt.max_drawdown_pct)}</div>
+                    <div class="stat-value red" class="">${formatPct(bt.max_drawdown_pct)}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Sharpe Ratio</div>
-                    <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}" style="font-size:22px">${formatNumber(bt.sharpe_ratio)}</div>
+                    <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}" class="">${formatNumber(bt.sharpe_ratio)}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Profit Factor</div>
-                    <div class="stat-value ${bt.profit_factor >= 1 ? 'green' : 'red'}" style="font-size:22px">${formatNumber(bt.profit_factor)}</div>
+                    <div class="stat-value ${bt.profit_factor >= 1 ? 'green' : 'red'}" class="">${formatNumber(bt.profit_factor)}</div>
                 </div>
             </div>
 

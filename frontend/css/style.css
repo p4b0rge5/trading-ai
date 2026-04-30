@@ -280,8 +280,10 @@ body {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 20px;
+    padding: 14px;
     transition: border-color 0.2s;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 .card:hover { border-color: rgba(59,130,246,0.2); }
 
@@ -316,10 +318,11 @@ body {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px 18px;
+    padding: 12px;
     position: relative;
     overflow: hidden;
     transition: border-color 0.2s, transform 0.15s;
+    min-width: 0; /* prevent flex overflow */
 }
 .stat-card:hover {
     border-color: rgba(59,130,246,0.25);
@@ -336,12 +339,13 @@ body {
 }
 
 .stat-card .stat-value {
-    font-size: clamp(20px, 5vw, 26px);
+    font-size: clamp(18px, 4.5vw, 24px);
     font-weight: 700;
     letter-spacing: -0.5px;
     line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
 }
 .stat-card .stat-value.green { color: var(--green); }
 .stat-card .stat-value.red { color: var(--red); }
@@ -798,6 +802,9 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
         padding: 28px 40px;
         padding-top: 28px;
     }
+
+    .card { padding: 20px; }
+    .stat-card { padding: 16px 18px; }
 
     .stats-grid {
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

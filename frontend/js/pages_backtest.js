@@ -24,7 +24,7 @@ Router.register('/backtest/run/:id', async (app) => {
                 <p>Estratégia: <strong style="color:var(--accent)">${strategy.name}</strong> (${strategy.symbol})</p>
             </div>
         </div>
-        <div class="card" style="max-width:560px">
+        <div class="card" style="max-width:100%">
             <div class="form-group">
                 <label for="bt-bars">Número de barras</label>
                 <select class="form-select" id="bt-bars">
@@ -59,21 +59,21 @@ async function runBacktestFor(strategyId) {
         result.innerHTML = `
             <div class="alert alert-success">✅ Backtest concluído!</div>
             <div class="stats-grid" style="margin:0">
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Retorno</div>
-                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}" style="font-size:22px">${formatPct(bt.total_return_pct)}</div>
+                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}" class="">${formatPct(bt.total_return_pct)}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Win Rate</div>
-                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" style="font-size:22px">${formatPct(bt.win_rate * 100)}</div>
+                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" class="">${formatPct(bt.win_rate * 100)}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Trades</div>
-                    <div class="stat-value accent" style="font-size:22px">${bt.total_trades}</div>
+                    <div class="stat-value accent" class="">${bt.total_trades}</div>
                 </div>
-                <div class="stat-card" style="padding:14px">
+                <div class="stat-card">
                     <div class="stat-label">Sharpe</div>
-                    <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}" style="font-size:22px">${formatNumber(bt.sharpe_ratio)}</div>
+                    <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}" class="">${formatNumber(bt.sharpe_ratio)}</div>
                 </div>
             </div>
             <button class="btn btn-primary btn-full mt-16" onclick="Router.navigate('/backtest/${bt.id}')">Ver Resultado Completo →</button>`;

@@ -157,17 +157,17 @@ async function quickCreate() {
         result.innerHTML = `
             <div class="alert alert-success" style="margin-top:12px">✅ Estratégia criada com sucesso!</div>
             <div class="stats-grid" style="margin-top:12px;margin-bottom:0">
-                <div class="stat-card" style="padding:12px">
+                <div class="stat-card">
                     <div class="stat-label">Retorno</div>
-                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}" style="font-size:20px">${formatPct(bt.total_return_pct)}</div>
+                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}" class="">${formatPct(bt.total_return_pct)}</div>
                 </div>
-                <div class="stat-card" style="padding:12px">
+                <div class="stat-card">
                     <div class="stat-label">Win Rate</div>
-                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" style="font-size:20px">${formatPct(bt.win_rate * 100)}</div>
+                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" class="">${formatPct(bt.win_rate * 100)}</div>
                 </div>
-                <div class="stat-card" style="padding:12px">
+                <div class="stat-card">
                     <div class="stat-label">Trades</div>
-                    <div class="stat-value accent" style="font-size:20px">${bt.total_trades}</div>
+                    <div class="stat-value accent" class="">${bt.total_trades}</div>
                 </div>
             </div>
             <div class="btn-group mt-12">
