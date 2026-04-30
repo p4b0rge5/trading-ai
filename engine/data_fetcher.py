@@ -55,6 +55,42 @@ SYMBOL_MAP = {
     "DOGEUSD": "DOGE-USD",
     "AVAXUSD": "AVAX-USD",
     "MATICUSD": "MATIC-USD",
+    # B3 — Brazilian Stock Exchange (.SA suffix, BRL)
+    "B3SA3":  "B3SA3.SA",
+    "BBAS3":  "BBAS3.SA",
+    "BBDC4":  "BBDC4.SA",
+    "BBSE3":  "BBSE3.SA",
+    "PETR3":  "PETR3.SA",
+    "PETR4":  "PETR4.SA",
+    "ITUB4":  "ITUB4.SA",
+    "ABEV3":  "ABEV3.SA",
+    "TAEE11": "TAEE11.SA",
+    "VALE3":  "VALE3.SA",
+    "WEGE3":  "WEGE3.SA",
+    "SUZB3":  "SUZB3.SA",
+    "CSAN3":  "CSAN3.SA",
+    "RADL3":  "RADL3.SA",
+    "KLBN11": "KLBN11.SA",
+    "RENT3":  "RENT3.SA",
+    "HGLG11": "HGLG11.SA",
+    "GGBR4":  "GGBR4.SA",
+    "PINE3":  "PINE3.SA",
+    "IRBR3":  "IRBR3.SA",
+    "TIMS3":  "TIMS3.SA",
+    "CSMG3":  "CSMG3.SA",
+    "SMTO3":  "SMTO3.SA",
+    "MGLU3":  "MGLU3.SA",
+    "HAPV3":  "HAPV3.SA",
+    "HGBS11": "HGBS11.SA",
+    "HGBR3":  "HGBR3.SA",
+    "COGN3":  "COGN3.SA",
+    "HBOR3":  "HBOR3.SA",
+    "PCAR3":  "PCAR3.SA",
+    "CAML3":  "CAML3.SA",
+    "BNBR3":  "BNBR3.SA",
+    "SBSP3":  "SBSP3.SA",
+    "SANB3":  "SANB3.SA",
+    "TOTS3":  "TOTS3.SA",
 }
 
 # Supported timeframe mappings: our internal → yfinance interval + period
@@ -198,24 +234,24 @@ def fetch_ohlcv(
 
 def get_available_symbols() -> list[dict]:
     """Return list of available symbols with metadata for autocomplete."""
-    categories = {"forex": [], "crypto": []}
-    for sym in KNOWN_SYMBOLS:
-        if sym.endswith("JPY") or "=" in SYMBOL_MAP[sym]:
-            if sym.startswith("BTC") or sym.startswith("ETH") or sym.startswith("BNB") \
-               or sym.startswith("SOL") or sym.startswith("XRP") or sym.startswith("ADA") \
-               or sym.startswith("DOT") or sym.startswith("DOGE") or sym.startswith("AVAX") \
-               or sym.startswith("MATIC"):
-                pass
-            categories["forex"].append(sym)
-        else:
-            categories["crypto"].append(sym)
+    # B3 symbols: any ticker ending with a digit (PETR4, B3SA3, etc.) that maps
+    # to a .SA ticker
+    b3_prefixes = {"B3SA", "BBAS", "BBDC", "BBSE", "PETR", "ITUB", "ABEV",
+                   "TAEE", "VALE", "WEGE", "SUZB", "CSAN", "RADL", "KLBN",
+                   "RENT", "HGLG", "GGBR", "PINE", "IRBR", "TIMS", "CSMG",
+                   "SMTO", "MGLU", "HAPV", "HGBS", "HGBR", "COGN", "HBOR",
+                   "PCAR", "CAML", "BNBR", "SBSP", "SANB", "TOTS"}
 
     result = []
     for sym in KNOWN_SYMBOLS:
-        if any(sym.startswith(p) for p in ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOT", "DOGE", "AVAX", "MATIC"]):
-            result.append({"symbol": sym, "type": "crypto", "ticker": SYMBOL_MAP[sym]})
+        yf_sym = SYMBOL_MAP[sym]
+
+        if ".SA" in yf_sym:
+            result.append({"symbol": sym, "type": "b3", "ticker": yf_sym, "currency": "BRL"})
+        elif any(sym.startswith(p) for p in ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOT", "DOGE", "AVAX", "MATIC"]):
+            result.append({"symbol": sym, "type": "crypto", "ticker": yf_sym, "currency": "USD"})
         else:
-            result.append({"symbol": sym, "type": "forex", "ticker": SYMBOL_MAP[sym]})
+            result.append({"symbol": sym, "type": "forex", "ticker": yf_sym, "currency": "USD"})
     return result
 
 

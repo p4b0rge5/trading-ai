@@ -25,8 +25,14 @@ Router.register('/create', (app) => {
                     </div>
                     <div class="form-group">
                         <label for="create-symbol">Símbolo (opcional)</label>
-                        <input type="text" class="form-input" id="create-symbol" list="symbol-list" placeholder="Ex: EURUSD, BTCUSD...">
-                        <datalist id="symbol-list"></datalist>
+                        <select class="form-select" id="create-symbol">
+                            <option value="">Selecione o ativo...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="create-symbol-search">🔍 Buscar ativo</label>
+                        <input type="text" class="form-input" id="create-symbol-search"
+                            placeholder="Digite para filtrar (ex: PETR4, EURUSD, BTC)..." oninput="filterSymbolSelect()">
                     </div>
                     <div class="form-group">
                         <label for="create-bars">Barras para backtest</label>
@@ -47,7 +53,7 @@ Router.register('/create', (app) => {
                 <div class="card mt-16">
                     <h3 style="margin-bottom:10px">💡 Dicas de prompts</h3>
                     <div class="text-sm" style="color:var(--text-secondary);line-height:2.2">
-                        <div>✅ <strong>Mencione o par de moedas:</strong> EURUSD, GBPJPY, BTCUSD</div>
+                        <div>✅ <strong>Mencione o ativo:</strong> EURUSD, BTCUSD, PETR4, VALE3</div>
                         <div>✅ <strong>Especifique o timeframe:</strong> 1m, 5m, 15m, 1h, 4h, 1d</div>
                         <div>✅ <strong>Seja claro nos indicadores:</strong> "RSI período 14", "Média 200"</div>
                         <div>✅ <strong>Defina entry/exit:</strong> "comprar quando X cruzar Y"</div>
@@ -72,12 +78,53 @@ Router.register('/create', (app) => {
     `);
     setActiveNav('/create');
 
-    // Load symbols
+    // Load symbols grouped by category
     API.get('/api/v1/data/symbols').then(symbols => {
-        const dl = document.getElementById('symbol-list');
-        if (dl) dl.innerHTML = symbols.map(s => `<option value="${s.symbol}">`).join('');
+        const sel = document.getElementById('create-symbol');
+        if (!sel) return;
+
+        // Group by type
+        const groups = { b3: [], forex: [], crypto: [] };
+        for (const s of symbols) {
+            const t = s.type || 'forex';
+            if (groups[t]) groups[t].push(s);
+            else groups.forex.push(s);
+        }
+
+        sel.innerHTML = '<option value="">Selecione o ativo...</option>';
+        const labels = { b3: '🇧🇷 Ações B3 (BRL)', forex: '💱 Forex', crypto: '₿ Cripto' };
+        for (const [type, items] of Object.entries(groups)) {
+            if (!items.length) continue;
+            const og = document.createElement('optgroup');
+            og.label = labels[type] || type;
+            for (const s of items) {
+                const opt = document.createElement('option');
+                opt.value = s.symbol;
+                const cur = s.currency || (s.type === 'b3' ? 'R$' : '$');
+                opt.textContent = `${s.symbol} (${s.ticker}) — ${cur}`;
+                og.appendChild(opt);
+            }
+            sel.appendChild(og);
+        }
+
+        // Show search box if many symbols
+        const searchBox = document.getElementById('create-symbol-search');
+        if (searchBox && symbols.length > 15) searchBox.style.display = 'block';
     }).catch(() => {});
 });
+
+// Global: filter symbol select by search text
+window.filterSymbolSelect = function() {
+    const q = (document.getElementById('create-symbol-search')?.value || '').toUpperCase();
+    const sel = document.getElementById('create-symbol');
+    if (!sel) return;
+    const opts = sel.querySelectorAll('option');
+    opts.forEach(o => {
+        if (!o.value) return; // skip placeholder
+        const text = (o.textContent + ' ' + o.value).toUpperCase();
+        o.style.display = q === '' || text.includes(q) ? '' : 'none';
+    });
+};
 
 async function doCreate() {
     const prompt = document.getElementById('create-prompt')?.value?.trim();
