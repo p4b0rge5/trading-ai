@@ -15,7 +15,7 @@ from typing import Optional
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, Boolean,
-    DateTime, Text, ForeignKey, JSON,
+    DateTime, Text, ForeignKey, JSON, event,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
@@ -30,6 +30,15 @@ engine = create_engine(
     connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
     poolclass=StaticPool if "sqlite" in settings.database_url else None,
 )
+
+# ── SQLite foreign key enforcement ────────────────────────────────────────
+# SQLite has FK enforcement OFF by default. Each connection must enable it.
+if "sqlite" in settings.database_url:
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_fk(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -147,7 +156,7 @@ class LiveTrade(Base):
     __tablename__ = "live_trades"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(Integer, ForeignKey("live_sessions.id"), nullable=False)
+    session_id = Column(Integer, ForeignKey("live_sessions.id", ondelete="CASCADE"), nullable=False)
     metaapi_trade_id = Column(Integer, nullable=True)
     symbol = Column(String(20), nullable=False)
     side = Column(String(4), nullable=False)  # BUY/SELL
