@@ -27,6 +27,9 @@ const API = {
             const body = await res.json().catch(() => ({}));
             throw new Error(body.detail || `HTTP ${res.status}`);
         }
+        if (res.status === 204 || res.headers.get('content-length') === '0') {
+            return null;
+        }
         return res.json();
     },
 
