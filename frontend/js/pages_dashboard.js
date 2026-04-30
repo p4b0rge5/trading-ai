@@ -106,32 +106,14 @@ async function renderDashboard() {
             </div>
 
             <!-- Strategies List -->
-            <div class="card mt-20">
-                <div class="card-header">
+            <div class="mt-20">
+                <div class="card-header" style="margin-bottom:12px">
                     <h3>📁 Suas Estratégias</h3>
                     <button class="btn btn-sm btn-primary" onclick="Router.navigate('/create')">+ Nova</button>
                 </div>
                 ${strategies.length === 0
-                    ? '<div class="empty-state"><h3>Nenhuma estratégia</h3><p>Vá para "Criar Estratégia" para começar</p></div>'
-                    : `<div class="table-wrap"><table>
-                        <thead><tr><th>Nome</th><th>Symbol</th><th>Timeframe</th><th>Criada em</th><th>Ações</th></tr></thead>
-                        <tbody>
-                            ${strategies.map(s => `
-                                <tr>
-                                    <td>
-                                        <strong style="cursor:pointer;color:var(--accent)" onclick="Router.navigate('/strategy/${s.id}')">${s.name}</strong>
-                                        ${s.description ? `<div class="text-sm text-muted" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.description}</div>` : ''}
-                                    </td>
-                                    <td data-label="Symbol"><span class="badge badge-blue">${s.symbol}</span></td>
-                                    <td data-label="Timeframe">${s.timeframe}</td>
-                                    <td data-label="Criada em" class="text-muted">${formatDate(s.created_at)}</td>
-                                    <td data-label="Ações">
-                                        <button class="btn btn-sm btn-secondary" onclick="Router.navigate('/strategy/${s.id}')">Ver</button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table></div>`
+                    ? `<div class="card"><div class="empty-state"><h3>Nenhuma estratégia</h3><p>Vá para "Criar Estratégia" para começar</p></div></div>`
+                    : strategies.map(s => renderStrategyCard(s)).join('')
                 }
             </div>
         `;

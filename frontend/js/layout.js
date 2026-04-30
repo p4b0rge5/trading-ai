@@ -96,3 +96,39 @@ function setActiveNav(path) {
     });
     closeSidebar();
 }
+
+// ── Strategy Card Renderer (shared by dashboard + strategies page) ──────
+function renderStrategyCard(s) {
+    const spec = s.spec_json || {};
+    const indicators = spec.indicators || [];
+    const indLabels = indicators.slice(0, 3).map(ind => ind.indicator_type).join(', ');
+    const indMore = indicators.length > 3 ? ` +${indicators.length - 3}` : '';
+    const icon = s.symbol.includes('USD') && s.symbol.length === 6 ? '💱' : '📈';
+
+    return `
+        <div class="strategy-card" onclick="Router.navigate('/strategy/${s.id}')">
+            <div class="strategy-card-body">
+                <div class="strategy-card-main">
+                    <span class="strategy-card-icon">${icon}</span>
+                    <div class="strategy-card-info">
+                        <div class="strategy-card-name">${s.name}</div>
+                        ${s.description ? `<div class="strategy-card-desc">${s.description}</div>` : ''}
+                    </div>
+                </div>
+                <div class="strategy-card-meta">
+                    <span class="badge badge-blue">${s.symbol}</span>
+                    <span class="badge badge-purple">${s.timeframe}</span>
+                    <span class="badge badge-yellow">${indicators.length} indicador${indicators.length !== 1 ? 'es' : ''}${indMore}</span>
+                    ${indLabels ? `<span class="strategy-card-indicators">${indLabels}</span>` : ''}
+                </div>
+            </div>
+            <div class="strategy-card-footer">
+                <span class="text-muted text-sm">${formatDate(s.created_at)}</span>
+                <div class="strategy-card-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); Router.navigate('/strategy/${s.id}')">Detalhes</button>
+                    <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteStrategy(${s.id})">Apagar</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
