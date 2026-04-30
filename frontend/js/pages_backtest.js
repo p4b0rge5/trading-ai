@@ -31,7 +31,11 @@ Router.register('/backtest/run/:id', async (app) => {
                     <option value="1000">1000 (rápido)</option>
                     <option value="2000" selected>2000</option>
                     <option value="5000">5000 (recomendado)</option>
-                    <option value="10000">10000 (completo)</option>
+                    <option value="10000">10000</option>
+                    <option value="15000">15000</option>
+                    <option value="20000">20000</option>
+                    <option value="30000">30000 (extenso)</option>
+                    <option value="50000">50000 (máximo)</option>
                 </select>
             </div>
             <button class="btn btn-primary btn-full" onclick="runBacktestFor(${id})" id="bt-btn">

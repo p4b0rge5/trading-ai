@@ -38,9 +38,13 @@ Router.register('/create', (app) => {
                         <label for="create-bars">Barras para backtest</label>
                         <select class="form-select" id="create-bars">
                             <option value="1000">1000 barras (rápido)</option>
-                            <option value="2000" selected>2000 barras</option>
-                            <option value="5000">5000 barras (recomendado)</option>
-                            <option value="10000">10000 barras (completo)</option>
+                            <option value="2000">2000 barras</option>
+                            <option value="5000" selected>5000 barras (recomendado)</option>
+                            <option value="10000">10000 barras</option>
+                            <option value="15000">15000 barras</option>
+                            <option value="20000">20000 barras</option>
+                            <option value="30000">30000 barras (extenso)</option>
+                            <option value="50000">50000 barras (máximo)</option>
                         </select>
                     </div>
                     <button class="btn btn-primary btn-full" onclick="doCreate()" id="create-btn">

@@ -149,7 +149,7 @@ def timeframe_to_range(timeframe: str, n_bars: int) -> dict:
     else:
         days_needed = (n_bars * config["multiplier"] * config["unit_minutes"]) / (60 * 24)
 
-    start_date = end_date - timedelta(days=min(days_needed, 3650))  # Max ~10 years
+    start_date = end_date - timedelta(days=min(days_needed, 5000))  # Max ~13.7 years
     return {"start": start_date.strftime("%Y-%m-%d"), "end": end_date.strftime("%Y-%m-%d")}
 
 

@@ -72,8 +72,7 @@ class PromptRequest(BaseModel):
     prompt: str = Field(..., min_length=10, max_length=5000,
                          description="Natural language strategy description")
     run_backtest: bool = Field(default=True)
-    bars: int = Field(default=5000, ge=500, le=20000)
-
+    bars: int = Field(default=5000, ge=500, le=50000)
 
 class PromptResponse(BaseModel):
     strategy: StrategyResponse
@@ -85,7 +84,7 @@ class PromptResponse(BaseModel):
 
 class BacktestRequest(BaseModel):
     strategy_id: int = Field(..., description="Strategy to backtest")
-    bars: int = Field(default=5000, ge=500, le=20000)
+    bars: int = Field(default=5000, ge=500, le=50000)
 
 
 class BacktestSummary(BaseModel):
