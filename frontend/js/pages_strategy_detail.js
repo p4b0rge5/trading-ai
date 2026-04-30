@@ -29,7 +29,7 @@ Router.register('/strategy/:id', async (app) => {
         const renderIndicator = (ind) => {
             const icons = { sma: '📈', ema: '📈', wma: '📈', rsi: '📊', macd: '📉',
                            bollinger: '📉', stochastic: '📊', atr: '📏', adx: '📈' };
-            return `<span class="badge badge-blue">${icons[ind.indicator_type] || '📊'} ${ind.indicator_type.toUpperCase()}(${ind.period})</span>`;
+            return `<span class="badge badge-blue">${icons[ind.indicator_type] || '📊'} ${ind.indicator_type}(${ind.period})</span>`;
         };
 
         const renderCondition = (c) => {
