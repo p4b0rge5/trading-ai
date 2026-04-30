@@ -127,6 +127,44 @@ class TradeResponse(BaseModel):
         from_attributes = True
 
 
+# ── Live Trading ───────────────────────────────────────────────────────
+
+class LiveSessionCreate(BaseModel):
+    strategy_id: int = Field(..., description="Strategy to run live")
+    account_id: int = Field(..., description="MetaApi account ID")
+    mode: str = Field(default="paper", description="paper or live")
+
+
+class LiveSessionResponse(BaseModel):
+    id: int
+    strategy_id: int
+    mode: str
+    status: str
+    equity: float = 0.0
+    balance: float = 0.0
+    daily_pnl: float = 0.0
+    total_trades: int = 0
+    win_rate: float = 0.0
+
+
+class LiveTradeResponse(BaseModel):
+    id: int
+    metaapi_trade_id: Optional[int] = None
+    side: str
+    entry_time: datetime
+    entry_price: float
+    exit_time: Optional[datetime] = None
+    exit_price: Optional[float] = None
+    volume: float
+    sl: Optional[float] = None
+    tp: Optional[float] = None
+    profit: Optional[float] = None
+    profit_pct: Optional[float] = None
+    pips: Optional[float] = None
+    reason: str
+    closed: bool
+
+
 # ── Health ──────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):

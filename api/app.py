@@ -31,6 +31,7 @@ from .routes_auth import router as auth_router
 from .routes_strategies import router as strategies_router
 from .routes_backtests import router as backtests_router
 from .routes_data import router as data_router
+from .routes_live import router as live_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ app.include_router(auth_router)
 app.include_router(strategies_router)
 app.include_router(backtests_router)
 app.include_router(data_router)
+app.include_router(live_router)
 
 
 # ── Health Check ────────────────────────────────────────────────────────

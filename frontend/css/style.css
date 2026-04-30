@@ -32,6 +32,202 @@
     --sidebar-width: 250px;
     --header-height: 56px;
 }
+/* ========================================
+   Live Trading Page
+   ======================================== */
+
+.live-session-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--spacing);
+    margin-bottom: var(--spacing);
+}
+
+.live-session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing);
+    flex-wrap: wrap;
+    gap: var(--spacing-half);
+}
+
+.live-session-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-half);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.live-session-actions {
+    display: flex;
+    gap: var(--spacing-half);
+}
+
+.live-session-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: var(--spacing-half);
+}
+
+.stat-item {
+    text-align: center;
+    padding: var(--spacing-half);
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.detail-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: var(--spacing-half);
+    margin-bottom: var(--spacing);
+}
+
+.stat-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius);
+    padding: var(--spacing);
+    text-align: center;
+}
+
+.detail-info {
+    margin-top: var(--spacing);
+    padding: var(--spacing);
+    background: var(--bg-surface);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+}
+
+.detail-info p {
+    margin: 6px 0;
+}
+
+.detail-info strong {
+    color: var(--text);
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing);
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing) var(--spacing-lg);
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--spacing-half);
+    justify-content: flex-end;
+    margin-top: var(--spacing);
+    padding-top: var(--spacing);
+    border-top: 1px solid var(--border);
+}
+
+.form-group {
+    margin-bottom: var(--spacing);
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.text-green { color: #10b981 !important; }
+.text-red { color: #ef4444 !important; }
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: var(--spacing) 0 var(--spacing-half);
+}
+
+@media (max-width: 768px) {
+    .live-session-stats {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .detail-stats-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
 
 html, body {
     width: 100%;

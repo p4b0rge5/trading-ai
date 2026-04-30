@@ -6,6 +6,8 @@ Tables:
   - strategies: saved strategy specs (linked to user)
   - backtests: backtest results (linked to strategy)
   - trades: individual trade records (linked to backtest)
+  - live_sessions: live trading sessions (linked to user + strategy)
+  - live_trades: individual trade records from live sessions
 """
 
 from datetime import datetime
@@ -113,6 +115,55 @@ class Trade(Base):
     duration_minutes = Column(Integer, default=0)
 
     backtest = relationship("Backtest", back_populates="trades")
+
+
+class LiveSession(Base):
+    __tablename__ = "live_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    account_id = Column(Integer, nullable=False)  # MetaApi account ID
+    mode = Column(String(10), default="paper")  # "paper" or "live"
+    status = Column(String(20), default="running")  # running/stopped/error
+
+    # Performance tracking
+    equity = Column(Float, default=0.0)
+    balance = Column(Float, default=0.0)
+    daily_pnl = Column(Float, default=0.0)
+    total_trades = Column(Integer, default=0)
+    win_rate = Column(Float, default=0.0)
+
+    start_time = Column(DateTime, default=datetime.utcnow)
+    end_time = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    strategy = relationship("Strategy")
+    trades = relationship("LiveTrade", back_populates="session", cascade="all, delete-orphan")
+
+
+class LiveTrade(Base):
+    __tablename__ = "live_trades"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("live_sessions.id"), nullable=False)
+    metaapi_trade_id = Column(Integer, nullable=True)
+    symbol = Column(String(20), nullable=False)
+    side = Column(String(4), nullable=False)  # BUY/SELL
+    entry_time = Column(DateTime, nullable=False)
+    entry_price = Column(Float, nullable=False)
+    exit_time = Column(DateTime, nullable=True)
+    exit_price = Column(Float, nullable=True)
+    volume = Column(Float, default=0.01)
+    sl = Column(Float, nullable=True)
+    tp = Column(Float, nullable=True)
+    profit = Column(Float, nullable=True)
+    profit_pct = Column(Float, nullable=True)
+    pips = Column(Float, nullable=True)
+    reason = Column(Text, default="")
+    closed = Column(Boolean, default=False)
+
+    session = relationship("LiveSession", back_populates="trades")
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────

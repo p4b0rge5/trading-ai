@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     default_bars: int = 5000
     chart_output_dir: str = "backtest_charts"
 
+    # MetaApi Cloud
+    metaapi_api_key: str = ""
+    metaapi_account_id: int = 0  # 0 = no default account
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

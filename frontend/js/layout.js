@@ -53,6 +53,10 @@ function renderLayout(content) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     Backtests
                 </button>
+                <button class="nav-link" onclick="Router.navigate('/live')" data-page="/live">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/></svg>
+                    Live Trading
+                </button>
             </div>
             <div class="sidebar-user">
                 <div class="avatar">${initial}</div>
