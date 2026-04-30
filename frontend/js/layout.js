@@ -1,0 +1,58 @@
+/**
+ * App Layout: Sidebar + Content wrapper (rendered by dashboard, strategies, etc.)
+ */
+function renderLayout(content) {
+    const user = Auth.user();
+    const initial = user ? (user.full_name || user.username || '?')[0].toUpperCase() : '?';
+
+    return `
+    <div class="app-layout">
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5">
+                    <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/>
+                    <circle cx="18" cy="6" r="2" fill="#3b82f6"/>
+                </svg>
+                <div><h1>Trading AI</h1><span>v0.2</span></div>
+            </div>
+            <div class="sidebar-nav">
+                <a class="nav-link" onclick="Router.navigate('/dashboard')" data-page="/dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    Dashboard
+                </a>
+                <a class="nav-link" onclick="Router.navigate('/strategies')" data-page="/strategies">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    Estratégias
+                </a>
+                <a class="nav-link" onclick="Router.navigate('/create')" data-page="/create">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                    Criar Estratégia
+                </a>
+                <a class="nav-link" onclick="Router.navigate('/backtests')" data-page="/backtests">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    Backtests
+                </a>
+            </div>
+            <div class="sidebar-user">
+                <div class="avatar">${initial}</div>
+                <div class="user-info">
+                    <div class="user-name">${user?.full_name || user?.username || 'User'}</div>
+                    <div class="user-email">${user?.email || ''}</div>
+                </div>
+                <button class="btn-logout" onclick="Auth.logout();Router.navigate('/login')" title="Sair">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </nav>
+        <main class="main-content">
+            ${content}
+        </main>
+    </div>`;
+}
+
+// ── Active Nav Helper ──────────────────────────────────────────────────
+function setActiveNav(path) {
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.toggle('active', link.dataset.page === path);
+    });
+}

@@ -1,0 +1,191 @@
+[
+  {
+    "prompt": "Quero operar golden cross do EURUSD no gr\u00e1fico de 4 horas. Comprar quando a m\u00e9dia de 50 dias cruzar ",
+    "strategy": "Auto: Quero operar golden cross do EURUSD no gr\u00e1fico de ",
+    "trades": 26,
+    "win_rate": 0.4230769230769231,
+    "profit": -306.90957974466414
+  },
+  {
+    "prompt": "Estrat\u00e9gia de crossover de m\u00e9dias no GBPUSD 1 hora. M\u00e9dia r\u00e1pida de 10 per\u00edodos cruza acima da m\u00e9dia",
+    "strategy": "Auto: Estrat\u00e9gia de crossover de m\u00e9dias no GBPUSD 1 hora",
+    "trades": 70,
+    "win_rate": 0.42857142857142855,
+    "profit": -724.2725455114311
+  },
+  {
+    "prompt": "Operar com 3 m\u00e9dias m\u00f3veis no USDJPY. Comprar quando SMA 5 > SMA 10 > SMA 20 todas alinhadas para ci",
+    "strategy": "Auto: Operar com 3 m\u00e9dias m\u00f3veis no USDJPY. Comprar quan",
+    "trades": 5,
+    "win_rate": 0.8,
+    "profit": 150.73352860321143
+  },
+  {
+    "prompt": "Estrat\u00e9gia de reversal de RSI no GBPUSD 15 minutos. Comprar quando RSI 14 ficar abaixo de 30 e depoi",
+    "strategy": "Auto: Estrat\u00e9gia de reversal de RSI no GBPUSD 15 minutos",
+    "trades": 6,
+    "win_rate": 0.3333333333333333,
+    "profit": -93.31072347176452
+  },
+  {
+    "prompt": "Vender quando RSI do EURUSD estiver acima de 70 no gr\u00e1fico de 1 hora. Usar take profit de 80 pips e ",
+    "strategy": "Auto: Vender quando RSI do EURUSD estiver acima de 70 no",
+    "trades": 25,
+    "win_rate": 0.48,
+    "profit": -86.13850526823641
+  },
+  {
+    "prompt": "Operar cruzamento do MACD no EURUSD di\u00e1rio. Compra quando o MACD cruza acima do signal. Sa\u00edda com tr",
+    "strategy": "Auto: Operar cruzamento do MACD no EURUSD di\u00e1rio. Compra",
+    "trades": 11,
+    "win_rate": 0.2727272727272727,
+    "profit": -433.9351872462653
+  },
+  {
+    "prompt": "Estrat\u00e9gia de histograma MACD no GBPJPY 4 horas. Entrar quando o histograma MACD vira de negativo pa",
+    "strategy": "Auto: Estrat\u00e9gia de histograma MACD no GBPJPY 4 horas. E",
+    "trades": 26,
+    "win_rate": 0.6538461538461539,
+    "profit": 381.77457906862287
+  },
+  {
+    "prompt": "Estrat\u00e9gia de Bollinger Bands no EURUSD 1 hora. Comprar quando o pre\u00e7o toca a banda inferior e vende",
+    "strategy": "Auto: Estrat\u00e9gia de Bollinger Bands no EURUSD 1 hora. Co",
+    "trades": 74,
+    "win_rate": 0.5,
+    "profit": 11.273505245935162
+  },
+  {
+    "prompt": "Breakout de Bollinger no USDJPY. Quando o pre\u00e7o romper a banda superior de Bollinger com volume acim",
+    "strategy": "Auto: Breakout de Bollinger no USDJPY. Quando o pre\u00e7o ro",
+    "trades": 141,
+    "win_rate": 0.5815602836879432,
+    "profit": 1620.8070275305727
+  },
+  {
+    "prompt": "Estrat\u00e9gia combinada: SMA 20 cruza acima SMA 50 E RSI acima de 50 E MACD histograma positivo. Tudo n",
+    "strategy": "Auto: Estrat\u00e9gia combinada: SMA 20 cruza acima SMA 50 E ",
+    "trades": 20,
+    "win_rate": 0.35,
+    "profit": -502.2022736956894
+  },
+  {
+    "prompt": "Sistema de conflu\u00eancia no GBPUSD: ADX acima de 25 (tend\u00eancia forte) E crossover de EMA 9 acima EMA 2",
+    "strategy": "Auto: Sistema de conflu\u00eancia no GBPUSD: ADX acima de 25 ",
+    "trades": 38,
+    "win_rate": 0.42105263157894735,
+    "profit": -431.95440051257543
+  },
+  {
+    "prompt": "Operar estoc\u00e1stico no AUDUSD 15 min. Comprar quando %K cruza acima de %D na zona de sobrevenda (abai",
+    "strategy": "Auto: Operar estoc\u00e1stico no AUDUSD 15 min. Comprar quand",
+    "trades": 57,
+    "win_rate": 0.543859649122807,
+    "profit": 812.171590848091
+  },
+  {
+    "prompt": "Estrat\u00e9gia de diverg\u00eancia estoc\u00e1stica no EURUSD. Quando o pre\u00e7o faz fundo mais baixo mas o estoc\u00e1sti",
+    "strategy": "Auto: Estrat\u00e9gia de diverg\u00eancia estoc\u00e1stica no EURUSD. Q",
+    "trades": 64,
+    "win_rate": 0.46875,
+    "profit": -320.12720961741775
+  },
+  {
+    "prompt": "Estrat\u00e9gia de breakout do EURUSD no gr\u00e1fico de 4 horas. Quando o pre\u00e7o rompe o high dos \u00faltimos 20 c",
+    "strategy": "Auto: Estrat\u00e9gia de breakout do EURUSD no gr\u00e1fico de 4 h",
+    "trades": 42,
+    "win_rate": 0.35714285714285715,
+    "profit": -958.6192885896616
+  },
+  {
+    "prompt": "Operar breakout de range no GBPUSD. Quando o pre\u00e7o rompe o high da semana com volume acima de 1.5x a",
+    "strategy": "Auto: Operar breakout de range no GBPUSD. Quando o pre\u00e7o",
+    "trades": 79,
+    "win_rate": 0.3924050632911392,
+    "profit": -1144.0462427528785
+  },
+  {
+    "prompt": "Estrat\u00e9gia de acompanhamento de tend\u00eancia com ADX no EURUSD 4h. Entrar comprado quando ADX > 25 e pr",
+    "strategy": "Auto: Estrat\u00e9gia de acompanhamento de tend\u00eancia com ADX ",
+    "trades": 52,
+    "win_rate": 0.5769230769230769,
+    "profit": 777.0252124383018
+  },
+  {
+    "prompt": "Trend following no USDJPY di\u00e1rio. EMA 20 acima EMA 50 indica compra. EMA 20 abaixo EMA 50 indica ven",
+    "strategy": "Auto: Trend following no USDJPY di\u00e1rio. EMA 20 acima EMA",
+    "trades": 22,
+    "win_rate": 0.5909090909090909,
+    "profit": 339.9051630798717
+  },
+  {
+    "prompt": "Mean reversion no EURUSD 15 min. Quando o pre\u00e7o est\u00e1 mais de 2 desvios padr\u00e3o acima da m\u00e9dia de 50 p",
+    "strategy": "Auto: Mean reversion no EURUSD 15 min. Quando o pre\u00e7o es",
+    "trades": 24,
+    "win_rate": 0.75,
+    "profit": 1070.466514234655
+  },
+  {
+    "prompt": "Estrat\u00e9gia de regress\u00e3o \u00e0 m\u00e9dia no GBPUSD. Usar bandas de Bollinger com per\u00edodo 20. Comprar na banda",
+    "strategy": "Auto: Estrat\u00e9gia de regress\u00e3o \u00e0 m\u00e9dia no GBPUSD. Usar ba",
+    "trades": 480,
+    "win_rate": 0.6208333333333333,
+    "profit": 13044.480993361094
+  },
+  {
+    "prompt": "Estrat\u00e9gia para BTCUSD no gr\u00e1fico de 1 hora. RSI abaixo de 25 (acumula\u00e7\u00e3o) + volume em queda. Compra",
+    "strategy": "Auto: Estrat\u00e9gia para BTCUSD no gr\u00e1fico de 1 hora. RSI a",
+    "trades": 147,
+    "win_rate": 0.07482993197278912,
+    "profit": -0.16881578198697259
+  },
+  {
+    "prompt": "Operar ETHUSD com crossover de EMA 12 e EMA 26 no gr\u00e1fico de 4 horas. Confirma\u00e7\u00e3o com MACD. Stop los",
+    "strategy": "Auto: Operar ETHUSD com crossover de EMA 12 e EMA 26 no ",
+    "trades": 66,
+    "win_rate": 0.06060606060606061,
+    "profit": -2.490591247849174
+  },
+  {
+    "prompt": "Estrat\u00e9gia de scalping no EURUSD 5 minutos. EMA 9 cruza SMA 20. Stop de 10 pips, take profit de 15 p",
+    "strategy": "Auto: Estrat\u00e9gia de scalping no EURUSD 5 minutos. EMA 9 ",
+    "trades": 2,
+    "win_rate": 0.0,
+    "profit": -142.99751364433925
+  },
+  {
+    "prompt": "Operar sess\u00e3o londrina no GBPUSD 15 min. Entre 9h e 12h, usar crossover de SMA 10 e SMA 20 com RSI e",
+    "strategy": "Auto: Operar sess\u00e3o londrina no GBPUSD 15 min. Entre 9h ",
+    "trades": 50,
+    "win_rate": 0.5,
+    "profit": 0.11218330534696008
+  },
+  {
+    "prompt": "Estrat\u00e9gia conservadora no EURUSD 1 hora. Apenas operar quando ATR est\u00e1 abaixo da m\u00e9dia (mercado cal",
+    "strategy": "Auto: Estrat\u00e9gia conservadora no EURUSD 1 hora. Apenas o",
+    "trades": 44,
+    "win_rate": 0.38636363636363635,
+    "profit": -802.4024004399953
+  },
+  {
+    "prompt": "Estrat\u00e9gia multi-timeframe no EURUSD. Tend\u00eancia definida pela SMA 200 no gr\u00e1fico di\u00e1rio. Entradas no",
+    "strategy": "Auto: Estrat\u00e9gia multi-timeframe no EURUSD. Tend\u00eancia de",
+    "trades": 8,
+    "win_rate": 0.625,
+    "profit": 175.25868887906347
+  },
+  {
+    "prompt": "Estrat\u00e9gia de breakout com ATR no USDJPY 4h. Quando o pre\u00e7o rompe o high de 20 candles E ATR est\u00e1 cr",
+    "strategy": "Auto: Estrat\u00e9gia de breakout com ATR no USDJPY 4h. Quand",
+    "trades": 69,
+    "win_rate": 0.5362318840579711,
+    "profit": 331.43930591106374
+  },
+  {
+    "prompt": "Sistema completo para o par NZDUSD no gr\u00e1fico de 4 horas: entrada por crossover de EMA 20/50, confir",
+    "strategy": "Auto: Sistema completo para o par NZDUSD no gr\u00e1fico de 4",
+    "trades": 27,
+    "win_rate": 0.4444444444444444,
+    "profit": -506.014786245206
+  }
+]

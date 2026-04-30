@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+db.sqlite3
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+*.png
+*.jpg
+output/
+exports/
+downloads/
+
+# Dev/testing
+test_*.py
+diag*.py
+*.log
