@@ -1,5 +1,5 @@
 /**
- * App Layout: Sidebar + Content wrapper (rendered by dashboard, strategies, etc.)
+ * App Layout: Sidebar + Content wrapper with mobile hamburger menu
  */
 function renderLayout(content) {
     const user = Auth.user();
@@ -7,31 +7,52 @@ function renderLayout(content) {
 
     return `
     <div class="app-layout">
-        <nav class="sidebar">
+        <!-- Mobile Top Bar -->
+        <div class="mobile-bar">
+            <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18"/>
+                </svg>
+            </button>
+            <span class="brand">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5">
+                    <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/>
+                    <circle cx="18" cy="6" r="2" fill="#3b82f6"/>
+                </svg>
+                Trading AI
+            </span>
+            <div class="avatar" style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0">${initial}</div>
+        </div>
+
+        <!-- Overlay (mobile only) -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
             <div class="sidebar-brand">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5">
                     <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/>
                     <circle cx="18" cy="6" r="2" fill="#3b82f6"/>
                 </svg>
-                <div><h1>Trading AI</h1><span>v0.2</span></div>
+                <div><h1>Trading AI</h1><span class="version">v0.2</span></div>
             </div>
             <div class="sidebar-nav">
-                <a class="nav-link" onclick="Router.navigate('/dashboard')" data-page="/dashboard">
+                <button class="nav-link" onclick="Router.navigate('/dashboard')" data-page="/dashboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     Dashboard
-                </a>
-                <a class="nav-link" onclick="Router.navigate('/strategies')" data-page="/strategies">
+                </button>
+                <button class="nav-link" onclick="Router.navigate('/strategies')" data-page="/strategies">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     Estratégias
-                </a>
-                <a class="nav-link" onclick="Router.navigate('/create')" data-page="/create">
+                </button>
+                <button class="nav-link" onclick="Router.navigate('/create')" data-page="/create">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
                     Criar Estratégia
-                </a>
-                <a class="nav-link" onclick="Router.navigate('/backtests')" data-page="/backtests">
+                </button>
+                <button class="nav-link" onclick="Router.navigate('/backtests')" data-page="/backtests">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     Backtests
-                </a>
+                </button>
             </div>
             <div class="sidebar-user">
                 <div class="avatar">${initial}</div>
@@ -44,10 +65,28 @@ function renderLayout(content) {
                 </button>
             </div>
         </nav>
+
         <main class="main-content">
             ${content}
         </main>
     </div>`;
+}
+
+// ── Toggle Sidebar (mobile) ─────────────────────────────────────────────
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (!sidebar || !overlay) return;
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+}
+
+// Close sidebar when navigating (mobile)
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
 }
 
 // ── Active Nav Helper ──────────────────────────────────────────────────
@@ -55,4 +94,5 @@ function setActiveNav(path) {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.toggle('active', link.dataset.page === path);
     });
+    closeSidebar();
 }

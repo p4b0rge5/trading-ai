@@ -1,5 +1,5 @@
 /**
- * Backtest Pages: Run + Results with TradingView Chart
+ * Backtest Pages: Run + Results with TradingView Chart + Backtests list
  */
 
 // ── Run Backtest ───────────────────────────────────────────────────────
@@ -12,12 +12,21 @@ Router.register('/backtest/run/:id', async (app) => {
 
     app.innerHTML = renderLayout(`
         <div class="page-header">
-            <h2>🚀 Rodar Backtest</h2>
-            <p>Estratégia: <strong style="color:var(--accent)">${strategy.name}</strong> (${strategy.symbol})</p>
+            <div style="flex:1">
+                <div class="breadcrumb">
+                    <a onclick="Router.navigate('/strategies')">Estratégias</a>
+                    <span class="sep">›</span>
+                    <a onclick="Router.navigate('/strategy/${id}')">${strategy.name}</a>
+                    <span class="sep">›</span>
+                    <span class="current">Backtest</span>
+                </div>
+                <h2>🚀 Rodar Backtest</h2>
+                <p>Estratégia: <strong style="color:var(--accent)">${strategy.name}</strong> (${strategy.symbol})</p>
+            </div>
         </div>
-        <div class="card" style="max-width:600px">
+        <div class="card" style="max-width:560px">
             <div class="form-group">
-                <label>Número de barras</label>
+                <label for="bt-bars">Número de barras</label>
                 <select class="form-select" id="bt-bars">
                     <option value="1000">1000 (rápido)</option>
                     <option value="2000" selected>2000</option>
@@ -25,24 +34,24 @@ Router.register('/backtest/run/:id', async (app) => {
                     <option value="10000">10000 (completo)</option>
                 </select>
             </div>
-            <button class="btn btn-primary" onclick="runBacktestFor(${id})" id="bt-btn" style="width:100%;justify-content:center">
+            <button class="btn btn-primary btn-full" onclick="runBacktestFor(${id})" id="bt-btn">
                 🚀 Executar Backtest
             </button>
             <div id="bt-error" class="alert alert-error" style="display:none;margin-top:12px"></div>
-            <div id="bt-result" style="margin-top:16px"></div>
+            <div id="bt-result" class="mt-12"></div>
         </div>
     `);
 });
 
 async function runBacktestFor(strategyId) {
-    const bars = parseInt(document.getElementById('bt-bars').value);
+    const bars = parseInt(document.getElementById('bt-bars')?.value || '2000');
     const btn = document.getElementById('bt-btn');
     const errEl = document.getElementById('bt-error');
     const result = document.getElementById('bt-result');
 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Executando backtest...';
-    errEl.style.display = 'none';
+    if (errEl) errEl.style.display = 'none';
     result.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Calculando trades e métricas...</div>';
 
     try {
@@ -56,7 +65,7 @@ async function runBacktestFor(strategyId) {
                 </div>
                 <div class="stat-card" style="padding:14px">
                     <div class="stat-label">Win Rate</div>
-                    <div class="stat-value green" style="font-size:22px">${formatPct(bt.win_rate * 100)}</div>
+                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}" style="font-size:22px">${formatPct(bt.win_rate * 100)}</div>
                 </div>
                 <div class="stat-card" style="padding:14px">
                     <div class="stat-label">Trades</div>
@@ -67,13 +76,10 @@ async function runBacktestFor(strategyId) {
                     <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}" style="font-size:22px">${formatNumber(bt.sharpe_ratio)}</div>
                 </div>
             </div>
-            <div style="margin-top:16px">
-                <button class="btn btn-primary" onclick="Router.navigate('/backtest/${bt.id}')">Ver Resultado Completo →</button>
-            </div>`;
+            <button class="btn btn-primary btn-full mt-16" onclick="Router.navigate('/backtest/${bt.id}')">Ver Resultado Completo →</button>`;
         Toast.success('Backtest concluído!');
     } catch (err) {
-        errEl.style.display = 'block';
-        errEl.textContent = err.message;
+        if (errEl) { errEl.style.display = 'block'; errEl.textContent = err.message; }
         Toast.error('Falha no backtest');
     } finally {
         btn.disabled = false;
@@ -88,8 +94,15 @@ Router.register('/backtest/:id', async (app) => {
 
     app.innerHTML = renderLayout(`
         <div class="page-header">
-            <h2>📊 Resultado do Backtest</h2>
-            <p>Métricas, gráfico de equity e trades</p>
+            <div style="flex:1">
+                <div class="breadcrumb">
+                    <a onclick="Router.navigate('/backtests')">Backtests</a>
+                    <span class="sep">›</span>
+                    <span class="current">Resultado</span>
+                </div>
+                <h2>📊 Resultado do Backtest</h2>
+                <p>Métricas, gráfico de equity e trades executados</p>
+            </div>
         </div>
         <div id="backtest-detail">
             <div class="loading-overlay"><span class="spinner"></span> Carregando resultados...</div>
@@ -101,29 +114,45 @@ Router.register('/backtest/:id', async (app) => {
         const bt = data.backtest;
         const trades = data.trades || [];
 
-        // Render metrics
         let html = `
-            <div class="stats-grid" style="margin-bottom:24px">
-                <div class="stat-card"><div class="stat-label">Retorno Total</div>
-                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}">${formatPct(bt.total_return_pct)}</div></div>
-                <div class="stat-card"><div class="stat-label">Net Profit</div>
-                    <div class="stat-value ${bt.net_profit >= 0 ? 'green' : 'red'}">${formatCurrency(bt.net_profit)}</div></div>
-                <div class="stat-card"><div class="stat-label">Total Trades</div>
-                    <div class="stat-value accent">${bt.total_trades}</div></div>
-                <div class="stat-card"><div class="stat-label">Win Rate</div>
-                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}">${formatPct(bt.win_rate * 100)}</div></div>
-                <div class="stat-card"><div class="stat-label">Max Drawdown</div>
-                    <div class="stat-value red">${formatPct(bt.max_drawdown_pct)}</div></div>
-                <div class="stat-card"><div class="stat-label">Sharpe Ratio</div>
-                    <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}">${formatNumber(bt.sharpe_ratio)}</div></div>
-                <div class="stat-card"><div class="stat-label">Profit Factor</div>
-                    <div class="stat-value ${bt.profit_factor >= 1 ? 'green' : 'red'}">${formatNumber(bt.profit_factor)}</div></div>
-                <div class="stat-card"><div class="stat-label">Barras</div>
-                    <div class="stat-value accent">${formatNumber(bt.bars_count, 0)}</div></div>
+            <!-- Metrics Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Retorno Total</div>
+                    <div class="stat-value ${bt.total_return_pct >= 0 ? 'green' : 'red'}">${formatPct(bt.total_return_pct)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Net Profit</div>
+                    <div class="stat-value ${bt.net_profit >= 0 ? 'green' : 'red'}">${formatCurrency(bt.net_profit)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Trades</div>
+                    <div class="stat-value accent">${bt.total_trades}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Win Rate</div>
+                    <div class="stat-value ${bt.win_rate >= 0.5 ? 'green' : 'red'}">${formatPct(bt.win_rate * 100)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Max Drawdown</div>
+                    <div class="stat-value red">${formatPct(bt.max_drawdown_pct)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Sharpe Ratio</div>
+                    <div class="stat-value ${bt.sharpe_ratio >= 1 ? 'green' : 'red'}">${formatNumber(bt.sharpe_ratio)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Profit Factor</div>
+                    <div class="stat-value ${bt.profit_factor >= 1 ? 'green' : 'red'}">${formatNumber(bt.profit_factor)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Barras</div>
+                    <div class="stat-value accent">${formatNumber(bt.bars_count, 0)}</div>
+                </div>
             </div>
 
             <!-- Chart -->
-            <div class="card" style="margin-bottom:20px">
+            <div class="card section-gap">
                 <div class="card-header"><h3>📈 Equity Curve</h3></div>
                 <div id="equity-chart" class="chart-container"></div>
             </div>
@@ -134,18 +163,18 @@ Router.register('/backtest/:id', async (app) => {
                     <h3>📋 Trades (${trades.length})</h3>
                 </div>
                 ${trades.length === 0
-                    ? '<p style="color:var(--text-muted)">Nenhum trade encontrado</p>'
+                    ? '<div class="empty-state"><h3>Sem trades</h3><p>Esta estratégia não gerou nenhum trade neste período</p></div>'
                     : `<div class="table-wrap"><table>
                         <thead><tr><th>#</th><th>Side</th><th>Entry</th><th>Exit</th><th>Profit</th><th>Reason</th></tr></thead>
                         <tbody>
                             ${trades.map(t => `
                                 <tr>
-                                    <td>${t.trade_number}</td>
-                                    <td><span class="badge ${t.side === 'BUY' ? 'badge-green' : 'badge-red'}">${t.side}</span></td>
-                                    <td>${formatDate(t.entry_time)}</td>
-                                    <td>${formatDate(t.exit_time)}</td>
-                                    <td><span class="${t.profit >= 0 ? 'badge badge-green' : 'badge badge-red'}">${t.profit >= 0 ? '+' : ''}${formatNumber(t.profit)}</span></td>
-                                    <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-muted)">${t.reason || '—'}</td>
+                                    <td data-label="#">${t.trade_number}</td>
+                                    <td data-label="Side"><span class="badge ${t.side === 'BUY' ? 'badge-green' : 'badge-red'}">${t.side}</span></td>
+                                    <td data-label="Entry">${formatDate(t.entry_time)}</td>
+                                    <td data-label="Exit">${formatDate(t.exit_time)}</td>
+                                    <td data-label="Profit"><span class="badge ${t.profit >= 0 ? 'badge-green' : 'badge-red'}">${t.profit >= 0 ? '+' : ''}${formatNumber(t.profit)}</span></td>
+                                    <td data-label="Reason" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="text-muted">${t.reason || '—'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -155,8 +184,6 @@ Router.register('/backtest/:id', async (app) => {
         `;
 
         document.getElementById('backtest-detail').innerHTML = html;
-
-        // Render equity chart
         renderEquityChart(trades);
 
     } catch (err) {
@@ -169,17 +196,14 @@ async function renderEquityChart(trades) {
     const container = document.getElementById('equity-chart');
     if (!container || trades.length === 0) return;
 
-    // Load TradingView Lightweight Charts
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js';
     script.onload = () => {
         try {
             const { createChart } = LightweightCharts;
 
-            // Build equity curve from trades
             let equity = 10000;
             const equityData = [{ time: 0, value: equity }];
-
             trades.forEach(t => {
                 equity += (t.profit || 0);
                 equityData.push({ time: t.trade_number, value: equity });
@@ -208,10 +232,8 @@ async function renderEquityChart(trades) {
                 lastValueVisible: true,
                 priceLineVisible: true,
             });
-
             line.setData(equityData);
 
-            // Add profit/loss markers
             const markers = trades.map(t => ({
                 position: t.profit >= 0 ? 'below' : 'above',
                 color: t.profit >= 0 ? '#22c55e' : '#ef4444',
@@ -220,13 +242,13 @@ async function renderEquityChart(trades) {
                 time: t.trade_number,
             }));
             line.setMarkers(markers);
-
             chart.timeScale().fitContent();
 
-            // Responsive
+            // Responsive resize
             const resize = new ResizeObserver(entries => {
                 if (entries.length === 0) return;
-                chart.applyOptions({ width: entries[0].contentRect.width });
+                const { width, height } = entries[0].contentRect;
+                chart.applyOptions({ width, height });
             });
             resize.observe(container);
         } catch (e) {
@@ -240,8 +262,10 @@ async function renderEquityChart(trades) {
 Router.register('/backtests', async (app) => {
     app.innerHTML = renderLayout(`
         <div class="page-header">
-            <h2>Backtests</h2>
-            <p>Histórico de todos os seus backtests</p>
+            <div>
+                <h2>Backtests</h2>
+                <p>Histórico de todos os seus backtests</p>
+            </div>
         </div>
         <div id="backtests-list">
             <div class="loading-overlay"><span class="spinner"></span> Carregando...</div>
@@ -265,16 +289,16 @@ Router.register('/backtests', async (app) => {
             <thead><tr><th>ID</th><th>Barras</th><th>Trades</th><th>Win Rate</th><th>Retorno</th><th>Profit</th><th>DD</th><th>Sharpe</th><th>Data</th></tr></thead>
             <tbody>
                 ${backtests.map(b => `
-                    <tr style="cursor:pointer" onclick="Router.navigate('/backtest/${b.id}')">
-                        <td>#${b.id}</td>
-                        <td>${formatNumber(b.bars_count, 0)}</td>
-                        <td>${b.total_trades}</td>
-                        <td><span class="badge ${b.win_rate >= 0.5 ? 'badge-green' : 'badge-red'}">${formatPct(b.win_rate * 100)}</span></td>
-                        <td><span class="badge ${b.total_return_pct >= 0 ? 'badge-green' : 'badge-red'}">${formatPct(b.total_return_pct)}</span></td>
-                        <td>${formatCurrency(b.net_profit)}</td>
-                        <td>${formatPct(b.max_drawdown_pct)}</td>
-                        <td>${formatNumber(b.sharpe_ratio)}</td>
-                        <td style="color:var(--text-muted)">${formatDate(b.created_at)}</td>
+                    <tr onclick="Router.navigate('/backtest/${b.id}')">
+                        <td data-label="ID">#${b.id}</td>
+                        <td data-label="Barras">${formatNumber(b.bars_count, 0)}</td>
+                        <td data-label="Trades">${b.total_trades}</td>
+                        <td data-label="Win Rate"><span class="badge ${b.win_rate >= 0.5 ? 'badge-green' : 'badge-red'}">${formatPct(b.win_rate * 100)}</span></td>
+                        <td data-label="Retorno"><span class="badge ${b.total_return_pct >= 0 ? 'badge-green' : 'badge-red'}">${formatPct(b.total_return_pct)}</span></td>
+                        <td data-label="Profit">${formatCurrency(b.net_profit)}</td>
+                        <td data-label="DD">${formatPct(b.max_drawdown_pct)}</td>
+                        <td data-label="Sharpe">${formatNumber(b.sharpe_ratio)}</td>
+                        <td data-label="Data" class="text-muted">${formatDate(b.created_at)}</td>
                     </tr>
                 `).join('')}
             </tbody>

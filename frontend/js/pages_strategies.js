@@ -4,8 +4,11 @@
 Router.register('/strategies', async (app) => {
     app.innerHTML = renderLayout(`
         <div class="page-header">
-            <h2>Estratégias</h2>
-            <p>Gerencie suas estratégias de trading</p>
+            <div>
+                <h2>Estratégias</h2>
+                <p>Gerencie suas estratégias de trading</p>
+            </div>
+            <button class="btn btn-primary" onclick="Router.navigate('/create')">+ Nova Estratégia</button>
         </div>
         <div id="strategies-content">
             <div class="loading-overlay"><span class="spinner"></span> Carregando...</div>
@@ -22,33 +25,32 @@ async function renderStrategies() {
         container.innerHTML = strategies.length === 0
             ? `<div class="card"><div class="empty-state">
                 <h3>Nenhuma estratégia</h3>
-                <p style="margin-bottom:16px">Crie sua primeira estratégia com AI</p>
-                <button class="btn btn-primary" onclick="Router.navigate('/create')">Criar Estratégia</button>
+                <p>Crie sua primeira estratégia com AI</p>
+                <button class="btn btn-primary" style="margin-top:16px" onclick="Router.navigate('/create')">Criar Estratégia</button>
             </div></div>`
-            : `<div class="card">
-                <div class="table-wrap"><table>
-                    <thead><tr><th>Nome</th><th>Symbol</th><th>Timeframe</th><th>Indicadores</th><th>Criada em</th><th>Ações</th></tr></thead>
-                    <tbody>
-                        ${strategies.map(s => `
-                            <tr>
-                                <td>
-                                    <strong style="cursor:pointer;color:var(--accent)" onclick="Router.navigate('/strategy/${s.id}')">${s.name}</strong>
-                                </td>
-                                <td><span class="badge badge-blue">${s.symbol}</span></td>
-                                <td>${s.timeframe}</td>
-                                <td>${s.spec_json?.indicators ? s.spec_json.indicators.length + ' indicadores' : '—'}</td>
-                                <td style="color:var(--text-muted)">${formatDate(s.created_at)}</td>
-                                <td>
-                                    <div style="display:flex;gap:6px">
-                                        <button class="btn btn-sm btn-secondary" onclick="Router.navigate('/strategy/${s.id}')">Ver</button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteStrategy(${s.id})">Apagar</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table></div>
-            </div>`;
+            : `<div class="table-wrap"><table>
+                <thead><tr><th>Nome</th><th>Symbol</th><th>Timeframe</th><th>Indicadores</th><th>Criada em</th><th>Ações</th></tr></thead>
+                <tbody>
+                    ${strategies.map(s => `
+                        <tr>
+                            <td>
+                                <strong style="cursor:pointer;color:var(--accent)" onclick="Router.navigate('/strategy/${s.id}')">${s.name}</strong>
+                                ${s.description ? `<div class="text-sm text-muted" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.description}</div>` : ''}
+                            </td>
+                            <td data-label="Symbol"><span class="badge badge-blue">${s.symbol}</span></td>
+                            <td data-label="Timeframe">${s.timeframe}</td>
+                            <td data-label="Indicadores">${s.spec_json?.indicators ? s.spec_json.indicators.length + ' indic.' : '—'}</td>
+                            <td data-label="Criada em" class="text-muted">${formatDate(s.created_at)}</td>
+                            <td data-label="Ações">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-secondary" onclick="Router.navigate('/strategy/${s.id}')">Ver</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteStrategy(${s.id})">Apagar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table></div>`;
     } catch (err) {
         container.innerHTML = `<div class="alert alert-error">Erro: ${err.message}</div>`;
     }
