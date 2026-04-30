@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OpenTrade:
     """Tracks a trade open via MetaApi."""
-    trade_id: int  # MetaApi trade ID
+    trade_id: str  # MetaApi trade ticket/position ID (string in v29 SDK)
     session_id: int
     strategy_id: int
     symbol: str
@@ -57,7 +57,7 @@ class OrderManager:
         self.session_id = session_id
         self.risk = strategy_spec.risk_management
 
-        self._open_trades: dict[int, OpenTrade] = {}
+        self._open_trades: dict[str, OpenTrade] = {}
         self._closed_trades: list[OpenTrade] = []
         self._daily_pnl = 0.0
         self._daily_trades_count = 0
@@ -92,24 +92,30 @@ class OrderManager:
         price = signal["price"]
 
         try:
+            comment = f"TradingAI-{getattr(self.spec, 'name', 'strat')[:16]}"
             if side == "buy":
-                trade_id = await self.metaapi.buy(
+                result = await self.metaapi.buy(
                     symbol=self.spec.symbol,
                     volume=self._volume,
-                    price=price,
                     sl=sl,
                     tp=tp,
-                    comment=f"TradingAI-{self.spec.name[:16]}",
+                    comment=comment,
                 )
             else:
-                trade_id = await self.metaapi.sell(
+                result = await self.metaapi.sell(
                     symbol=self.spec.symbol,
                     volume=self._volume,
-                    price=price,
                     sl=sl,
                     tp=tp,
-                    comment=f"TradingAI-{self.spec.name[:16]}",
+                    comment=comment,
                 )
+
+            if result is None:
+                logger.error("Trade execution returned None — MetaApi rejected order")
+                return None
+
+            # v29 SDK: result is a dict — extract trade/position ID
+            trade_id = str(result.get("tradeId") or result.get("positionId") or result.get("orderId") or id(result))
 
             trade = OpenTrade(
                 trade_id=trade_id,
@@ -137,7 +143,7 @@ class OrderManager:
             logger.error(f"Failed to execute signal: {e}")
             return None
 
-    async def close_trade(self, trade_id: int, reason: str = "") -> Optional[OpenTrade]:
+    async def close_trade(self, trade_id: str, reason: str = "") -> Optional[OpenTrade]:
         """Close a specific trade."""
         if trade_id not in self._open_trades:
             return None
@@ -147,14 +153,17 @@ class OrderManager:
             return trade
 
         try:
-            success = await self.metaapi.close_trade(trade_id)
-            if success:
+            result = await self.metaapi.close_position(trade_id)
+            if result:
                 trade.closed = True
                 trade.exit_time = datetime.utcnow()
                 trade.reason = reason or trade.reason
+                trade.exit_price = result.get("price")
+                trade.profit = result.get("profit", trade.profit)
                 del self._open_trades[trade_id]
                 self._closed_trades.append(trade)
                 logger.info(f"Trade {trade_id} closed: {reason}")
+                return trade
             return trade
         except Exception as e:
             logger.error(f"Failed to close trade {trade_id}: {e}")
@@ -184,7 +193,7 @@ class OrderManager:
                 )
                 asyncio.create_task(self.close_all())
 
-    def on_trade_update(self, trade_id: int, profit: float, state: str):
+    def on_trade_update(self, trade_id: str, profit: float, state: str):
         """Handle trade update from MetaApi."""
         trade = self._open_trades.get(trade_id)
         if not trade:

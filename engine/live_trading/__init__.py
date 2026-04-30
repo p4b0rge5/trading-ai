@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 class LiveSession:
     """
     Top-level live trading session.
-    
+
     Wires together: MetaApi connection → bar builder → signal evaluation → orders.
-    
+
     Manages the full lifecycle: connect → preload history → evaluate → execute → close.
     """
 
@@ -60,23 +60,26 @@ class LiveSession:
         if self._running:
             return
 
-        # 1. Connect to MetaApi
-        self.metaapi = MetaApiClient(self.api_token, self.account_id)
-        await self.metaapi.start()
+        # 1. Create MetaApiClient (v29: constructor only needs api_token)
+        self.metaapi = MetaApiClient(self.api_token)
 
-        # 2. Create order manager
+        # 2. Connect to specific account
+        ok = await self.metaapi.connect(self.account_id)
+        if not ok:
+            raise RuntimeError(f"Failed to connect to MetaApi account {self.account_id}")
+
+        # 3. Create order manager
         self.order_mgr = OrderManager(self.metaapi, self.strategy_spec, self.session_id)
 
-        # 3. Create live engine
+        # 4. Create live engine
         self.engine = LiveEngine(
             spec=self.strategy_spec,
             metaapi_client=self.metaapi,
             order_manager=self.order_mgr,
             session_id=self.session_id,
-            api_token=self.api_token,
         )
 
-        # 4. Start engine (preloads history, subscribes to ticks)
+        # 5. Start engine (preloads history, subscribes to candles/ticks)
         await self.engine.start()
 
         self._running = True

@@ -2,7 +2,7 @@
 Live Engine — real-time bar builder + signal evaluation.
 
 Pipeline:
-  1. Receive ticks from MetaApi WebSocket
+  1. Receive ticks from MetaApi WebSocket (via SynchronizationListener)
   2. Accumulate ticks into OHLC bars matching the strategy timeframe
   3. On bar close, re-run StrategyInterpreter on accumulated history
   4. Forward new signals to OrderManager for execution
@@ -48,17 +48,16 @@ class LiveBar:
 class LiveEngine:
     """
     Real-time trading engine.
-    
+
     Receives ticks, builds bars, evaluates signals, executes orders.
     """
 
     def __init__(self, spec: StrategySpec, metaapi_client, order_manager,
-                 session_id: int, api_token: str):
+                 session_id: int):
         self.spec = spec
         self.metaapi = metaapi_client
         self.order_manager = order_manager
         self.session_id = session_id
-        self.api_token = api_token
 
         self.interpreter = StrategyInterpreter(spec)
 
@@ -71,6 +70,7 @@ class LiveEngine:
         self._running = False
         self._last_signal_bar: int = -1
         self._tick_count = 0
+        self._eval_lock = asyncio.Lock()
 
         # Signal callbacks (for frontend WebSocket)
         self._signal_callbacks: list = []
@@ -78,7 +78,7 @@ class LiveEngine:
     # ── Lifecycle ──────────────────────────────────────────────────────
 
     async def start(self):
-        """Start the live engine: preload history, subscribe to ticks."""
+        """Start the live engine: preload history, subscribe to candles."""
         if self._running:
             return
         self._running = True
@@ -86,13 +86,19 @@ class LiveEngine:
         # Preload historical bars for indicator warm-up
         await self._preload_history()
 
-        # Subscribe to ticks
-        await self.metaapi.subscribe_symbol(self.spec.symbol)
+        # Subscribe to candle updates for real-time bar building
+        tf = self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe
+        await self.metaapi.subscribe_candles(self.spec.symbol, tf)
 
-        # Register MetaApi event handlers
-        self.metaapi.on("tradeTickUpdate", self._on_tick)
-        self.metaapi.on("accountUpdate", self._on_account_update)
-        self.metaapi.on("tradeUpdate", self._on_trade_update)
+        # Also subscribe to tick for sub-timeframe resolution
+        await self.metaapi.get_tick(self.spec.symbol)
+
+        # Register event handlers on MetaApiClient
+        self.metaapi.on("tick", self._on_tick)
+        self.metaapi.on("candle", self._on_candle)
+        self.metaapi.on("account_update", self._on_account_update)
+        self.metaapi.on("deal", self._on_deal)
+        self.metaapi.on("position", self._on_position)
 
         logger.info(
             f"LiveEngine started: {self.spec.symbol} | {self.spec.timeframe} "
@@ -112,49 +118,105 @@ class LiveEngine:
     # ── Historical Data ────────────────────────────────────────────────
 
     async def _preload_history(self):
-        """Fetch historical bars from MetaApi API to warm up indicators."""
+        """Fetch historical data from MetaApi to warm up indicators.
+
+        Strategy: use MetaApi REST for historical deals + candles via
+        WebSocket subscription, or fall back to yfinance if MetaApi
+        doesn't have enough history.
+        """
         try:
-            bars = await self.metaapi.get_historical_bars(
-                symbol=self.spec.symbol,
-                timeframe=self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe,
-                count=1000,
+            # Get historical deals (closed trades) for reference
+            history_deals = await self.metaapi.get_history_deals(
+                symbol=self.spec.symbol, count=1000
             )
-            for bar in bars:
+            if history_deals:
+                logger.info(f"Preloaded {len(history_deals)} historical deals")
+
+            # Try to get current candle as sanity check
+            tf = self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe
+            # Map to MetaApi timeframe
+            tf_map = {
+                "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
+                "1h": "H1", "2h": "H2", "4h": "H4", "1d": "D1", "1w": "W1",
+            }
+            metaapi_tf = tf_map.get(tf, "H1")
+
+            candle = await self.metaapi.get_candle(self.spec.symbol, metaapi_tf)
+            if candle:
                 self._buffer.append(LiveBar(
-                    timestamp=datetime.utcfromtimestamp(bar['time'] / 1000) if bar['time'] > 1e12 else datetime.utcfromtimestamp(bar['time']),
-                    open=bar['open'],
-                    high=bar['high'],
-                    low=bar['low'],
-                    close=bar['close'],
-                    volume=bar.get('volume', 0),
+                    timestamp=datetime.utcfromtimestamp(candle.get('time', 0) / 1000) if candle.get('time', 0) > 1e12 else datetime.utcfromtimestamp(candle.get('time', 0)),
+                    open=candle.get('open', 0),
+                    high=candle.get('high', 0),
+                    low=candle.get('low', 0),
+                    close=candle.get('close', 0),
+                    volume=candle.get('volume', 0),
                     complete=True,
                 ))
-            logger.info(f"Preloaded {len(self._buffer)} historical bars")
+                logger.info(f"Preloaded candle: {self.spec.symbol} @ {self._buffer[-1].timestamp}")
+
         except Exception as e:
-            logger.error(f"Failed to preload history: {e}")
+            logger.warning(f"Failed to preload from MetaApi: {e}. Using yfinance fallback.")
+            # Fallback: fetch from yfinance
+            await self._preload_from_yfinance()
+
+    async def _preload_from_yfinance(self):
+        """Fallback: use yfinance for historical OHLCV data."""
+        try:
+            from engine.data_fetcher import DataFetcher
+            fetcher = DataFetcher()
+
+            timeframe_map = {
+                "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
+                "1h": "1h", "4h": "4h", "1d": "1d", "1w": "1wk",
+            }
+            yf_tf = timeframe_map.get(
+                self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe,
+                "1h"
+            )
+            yf_symbol = fetcher.resolve_symbol(self.spec.symbol)
+
+            df = fetcher.fetch(yf_symbol, yf_tf, period="60d" if yf_tf in ("1m", "5m", "15m", "30m") else "2y")
+
+            for _, row in df.iterrows():
+                self._buffer.append(LiveBar(
+                    timestamp=row['timestamp'].to_pydatetime() if hasattr(row['timestamp'], 'to_pydatetime') else row['timestamp'],
+                    open=float(row['open']),
+                    high=float(row['high']),
+                    low=float(row['low']),
+                    close=float(row['close']),
+                    volume=float(row.get('volume', 0)),
+                    complete=True,
+                ))
+
+            logger.info(f"Preloaded {len(self._buffer)} bars from yfinance")
+        except Exception as e:
+            logger.error(f"yfinance fallback also failed: {e}")
 
     # ── Tick Processing ────────────────────────────────────────────────
 
-    def _on_tick(self, message):
+    def _on_tick(self, tick: dict):
         """Process incoming tick from MetaApi WebSocket."""
         if not self._running:
             return
 
         try:
-            payload = message.payload if hasattr(message, 'payload') else message
-            symbol = payload.get('symbol', '')
-
+            symbol = tick.get('symbol', '')
             if symbol != self.spec.symbol:
                 return
 
-            bid = payload.get('bid')
-            ask = payload.get('ask')
-            ts_ms = payload.get('time', 0)
+            bid = tick.get('bid')
+            ask = tick.get('ask')
+            ts_raw = tick.get('time', 0)
 
             if bid is None:
                 return
 
-            ts = datetime.utcfromtimestamp(ts_ms / 1000)
+            # Handle timestamp: could be seconds or milliseconds
+            if ts_raw > 1e12:
+                ts = datetime.utcfromtimestamp(ts_raw / 1000)
+            else:
+                ts = datetime.utcfromtimestamp(ts_raw)
+
             self._process_tick(ts, float(bid), float(ask or bid))
         except Exception as e:
             logger.debug(f"Tick processing error: {e}")
@@ -190,6 +252,48 @@ class LiveEngine:
             self._current_bar.low = min(self._current_bar.low, bid)
             self._current_bar.close = bid
 
+    def _on_candle(self, candle: dict):
+        """Process candle update from MetaApi — use as authoritative bar close."""
+        if not self._running:
+            return
+
+        try:
+            symbol = candle.get('symbol', '')
+            if symbol != self.spec.symbol:
+                return
+
+            ts_raw = candle.get('time', 0)
+            if ts_raw > 1e12:
+                ts = datetime.utcfromtimestamp(ts_raw / 1000)
+            else:
+                ts = datetime.utcfromtimestamp(ts_raw)
+
+            # Candle is authoritative — add as completed bar
+            bar = LiveBar(
+                timestamp=ts,
+                open=float(candle.get('open', 0)),
+                high=float(candle.get('high', 0)),
+                low=float(candle.get('low', 0)),
+                close=float(candle.get('close', 0)),
+                volume=float(candle.get('volume', 0)),
+                complete=True,
+            )
+
+            # If we have a forming bar, finalize it first
+            if self._current_bar and not self._current_bar.complete:
+                self._current_bar.complete = True
+                self._current_bar.close = bar.open
+                self._buffer.append(self._current_bar)
+
+            self._buffer.append(bar)
+            self._current_bar = None  # Next tick will start new bar
+
+            # Evaluate
+            self._evaluate()
+
+        except Exception as e:
+            logger.debug(f"Candle processing error: {e}")
+
     # ── Signal Evaluation ──────────────────────────────────────────────
 
     def _evaluate(self):
@@ -219,68 +323,64 @@ class LiveEngine:
             trades = self.interpreter.run(df)
 
             # Find new trades not yet in order_manager
-            existing_ids = set(self.order_manager._open_trades.keys())
+            existing_symbols = set(self.order_manager._open_trades.keys())
             for trade in trades:
                 if trade.exit_time is None:  # Open trade signal
-                    signal = {
-                        'side': trade.side,
-                        'price': trade.entry_price,
-                        'reason': trade.reason,
-                    }
-                    asyncio.create_task(
-                        self.order_manager.execute_signal(signal)
-                    )
+                    trade_key = f"{trade.side}_{self.spec.symbol}"
+                    if trade_key not in existing_symbols:
+                        signal = {
+                            'side': trade.side,
+                            'price': trade.entry_price,
+                            'reason': trade.reason,
+                        }
+                        asyncio.create_task(
+                            self.order_manager.execute_signal(signal)
+                        )
+                        existing_symbols.add(trade_key)
 
-                    # Notify callbacks
-                    for cb in self._signal_callbacks:
-                        try:
-                            cb("signal", {
-                                'type': trade.side,
-                                'price': trade.entry_price,
-                                'reason': trade.reason,
-                                'time': trade.entry_time.isoformat() if trade.entry_time else None,
-                            })
-                        except Exception:
-                            pass
+                        # Notify callbacks
+                        for cb in self._signal_callbacks:
+                            try:
+                                cb("signal", {
+                                    'type': trade.side,
+                                    'price': trade.entry_price,
+                                    'reason': trade.reason,
+                                    'time': trade.entry_time.isoformat() if trade.entry_time else None,
+                                })
+                            except Exception:
+                                pass
 
         except Exception as e:
             logger.error(f"Signal evaluation error: {e}")
 
     # ── MetaApi Event Handlers ─────────────────────────────────────────
 
-    def _on_account_update(self, message):
+    def _on_account_update(self, data: dict):
         """Update risk state from account info."""
         try:
-            payload = message.payload if hasattr(message, 'payload') else message
-            equity = payload.get('equity', 0)
-            balance = payload.get('balance', 0)
-            profit = payload.get('profit', 0)
+            equity = data.get('equity', 0)
+            balance = data.get('balance', 0)
+            profit = data.get('profit', data.get('floatProfit', 0))
             self.order_manager.on_account_update(equity, balance, profit)
         except Exception:
             pass
 
-    def _on_trade_update(self, message):
-        """Forward trade updates to order manager."""
+    def _on_deal(self, data: dict):
+        """Process deal (executed trade)."""
         try:
-            payload = message.payload if hasattr(message, 'payload') else message
-            trade_id = payload.get('tradeId', 0)
-            profit = payload.get('profit', 0)
-            state = payload.get('state', '')
-            if trade_id:
-                self.order_manager.on_trade_update(trade_id, profit, state)
+            ticket = str(data.get('dealTicket', data.get('ticket', '')))
+            profit = data.get('profit', 0)
+            if ticket:
+                self.order_manager.on_trade_update(ticket, profit, 'closed')
         except Exception:
             pass
 
-    # ── Status ─────────────────────────────────────────────────────────
-
-    def get_status(self) -> dict:
-        """Current engine status for API response."""
-        stats = self.order_manager.get_stats()
-        return {
-            "running": self._running,
-            "symbol": self.spec.symbol,
-            "timeframe": self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe,
-            "bars_loaded": len(self._buffer),
-            "tick_count": self._tick_count,
-            **stats,
-        }
+    def _on_position(self, data: dict):
+        """Process position update."""
+        try:
+            pos_id = str(data.get('positionId', data.get('id', '')))
+            profit = data.get('profit', 0)
+            if pos_id:
+                self.order_manager.on_trade_update(pos_id, profit, 'open')
+        except Exception:
+            pass
