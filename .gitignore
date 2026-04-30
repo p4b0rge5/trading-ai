@@ -2,9 +2,6 @@
 __pycache__/
 *.pyc
 *.pyo
-.env
-*.db
-db.sqlite3
 
 # Node
 node_modules/
@@ -17,13 +14,6 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
-
-# Generated
-*.png
-*.jpg
-output/
-exports/
-downloads/
 
 # Dev/testing
 test_*.py
