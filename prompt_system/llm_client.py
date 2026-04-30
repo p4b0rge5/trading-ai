@@ -45,29 +45,151 @@ TIMEFRAME_VALUES = [t.value for t in Timeframe]
 
 def _parse_timeframe(text: str) -> str:
     text_lower = text.lower()
-    for alias, tf in TIMEFRAME_ALIASES.items():
+    # Sort aliases by length descending so longer matches are checked first
+    # (prevents "5 minutos" matching before "15 minutos")
+    for alias, tf in sorted(TIMEFRAME_ALIASES.items(), key=lambda x: -len(x[0])):
         if alias in text_lower:
             return tf
     return "1h"  # default
 
 
 def _parse_symbol(text: str) -> str:
-    # Match patterns like EURUSD, GBP/USD, BTC-USD, etc.
+    """Extract a known symbol from user prompt text.
+    
+    Checks against our full KNOWN_SYMBOLS list (B3, forex, crypto).
+    Returns best match or 'EURUSD' as fallback.
+    """
+    from engine.data_fetcher import KNOWN_SYMBOLS
+
+    text_upper = text.upper().replace("/", "").replace("-", "").replace(" ", "")
+
+    # Also try the raw prompt with separators preserved (for B3 like PETR4, VALE3)
+    text_raw_upper = text.upper()
+
+    # 1) Check full KNOWN_SYMBOLS against cleaned text
+    for sym in KNOWN_SYMBOLS:
+        sym_clean = sym.replace("/", "").replace("-", "").replace(" ", "")
+        if sym_clean in text_upper or sym in text_raw_upper:
+            return sym
+
+    # 2) Common forex/crypto without cleaning (handles GBP/USD etc.)
     pairs = [
         "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD",
         "GBPCAD", "EURGBP", "EURJPY", "GBPJPY", "AUDJPY",
         "BTCUSD", "ETHUSD", "BTCUSDT", "ETHUSDT",
+        "BNBUSD", "SOLUSD", "XRPUSD", "ADAUSD", "DOGEUSD",
     ]
-    text_upper = text.upper().replace("/", "").replace(" ", "")
     for pair in pairs:
         if pair in text_upper:
             return pair
+
     return "EURUSD"
 
 
+def _generate_strategy_name(text: str, symbol: str, timeframe: str, indicators: list) -> str:
+    """Generate a clear, concise strategy name instead of truncating the prompt.
+
+    Examples:
+      'PETR4 · SMA 10/50 Cross · 1D'
+      'EURUSD · RSI Oversold · 1H'
+      'BTCUSD · MACD Signal · 4H'
+    """
+    import re
+
+    # Determine primary strategy type — prioritize non-RSI indicators
+    primary_type = None
+    primary_period = None
+    sma_periods = []
+
+    for ind in indicators:
+        if not isinstance(ind, dict):
+            continue
+        itype = ind.get("indicator_type", "")
+        period = ind.get("period", "")
+
+        if itype in ("macd", "bollinger", "stochastic", "adx", "atr"):
+            # These always take priority over SMA/RSI
+            if itype == "macd":
+                primary_type = "MACD"
+            elif itype == "bollinger":
+                primary_type = "Bollinger"
+            elif itype == "stochastic":
+                primary_type = "Stochastic"
+            elif itype == "adx":
+                primary_type = "ADX"
+            elif itype == "atr":
+                primary_type = "ATR Breakout"
+            primary_period = period
+        elif itype == "sma":
+            sma_periods.append(period)
+            if primary_type is None:
+                primary_type = "SMA"
+        # RSI is ignored for primary type (it's often added as confirmation)
+
+    # Build strategy label
+    if primary_type == "SMA":
+        if len(sma_periods) >= 2:
+            strategy_type = f"SMA {sma_periods[0]}/{sma_periods[1]} Cross"
+        elif sma_periods:
+            strategy_type = f"SMA Cross"
+        else:
+            strategy_type = "SMA Cross"
+    elif primary_type == "RSI" or (primary_type is None and any(i.get("indicator_type") == "rsi" for i in indicators if isinstance(i, dict))):
+        # Get RSI period from indicators list
+        rsi_period = None
+        for i in indicators:
+            if isinstance(i, dict) and i.get("indicator_type") == "rsi":
+                rsi_period = i.get("period", 14)
+                break
+        # Fallback: extract from text
+        if rsi_period is None:
+            rsi_nums = re.findall(r'rsi\s*(\d+)', text, re.I)
+            if rsi_nums:
+                rsi_period = int(rsi_nums[0])
+        if rsi_period and rsi_period != 14:
+            strategy_type = f"RSI ({rsi_period})"
+        else:
+            strategy_type = "RSI"
+    else:
+        strategy_type = primary_type or "SMA Cross"
+
+    # Timeframe label
+    tf_labels = {
+        "1m": "1M", "5m": "5M", "15m": "15M", "30m": "30M",
+        "1h": "1H", "4h": "4H", "1d": "1D", "1w": "1W", "1mo": "1Mês",
+    }
+    tf_label = tf_labels.get(timeframe, timeframe)
+
+    return f"{symbol} · {strategy_type} · {tf_label}"
+
+
 def _extract_periods(text: str) -> tuple[int, int]:
-    """Extract two numbers from text like 'SMA 10 e SMA 50' or '50 e 200'."""
-    numbers = [int(x) for x in re.findall(r'(\d+)', text) if int(x) < 500]
+    """Extract two meaningful periods from text like 'SMA 10 e SMA 50' or '50 e 200'.
+
+    Filters out timeframe numbers (like '4h' → 4, '15m' → 15) and SL/TP pips.
+    Requires at least one explicit indicator keyword (sma, média, period) nearby
+    to avoid false matches.
+    """
+    # First try: look for SMA/EMA/média context patterns
+    sma_matches = re.findall(r'(?:sma|ema|média)\s*(\d+)', text, re.I)
+    if len(sma_matches) >= 2:
+        a, b = int(sma_matches[0]), int(sma_matches[1])
+        return min(a, b), max(a, b)
+    if len(sma_matches) == 1:
+        return int(sma_matches[0]), 50  # default second
+
+    # Second try: "periodo" or "período" followed by number
+    period_matches = re.findall(r'período\s*(\d+)', text, re.I)
+    if period_matches:
+        return int(period_matches[0]), int(period_matches[1]) if len(period_matches) > 1 else 50
+
+    # Fallback: extract numbers but skip common false positives
+    timeframe_pattern = re.findall(r'\b(\d+)\s*(?:h|minuto|dia|week|d|m|mo)\b', text, re.I)
+    sl_tp_pattern = re.findall(r'(?:stop|loss|take|profit|stop loss|take profit)\s*(\d+)', text, re.I)
+    excluded = set(int(x) for x in timeframe_pattern + sl_tp_pattern)
+
+    numbers = [int(x) for x in re.findall(r'(\d+)', text)
+               if 5 <= int(x) <= 500 and int(x) not in excluded]
     if len(numbers) >= 2:
         return min(numbers[0], numbers[1]), max(numbers[0], numbers[1])
     return 10, 50
@@ -114,13 +236,16 @@ class MockLLMClient:
         entry_conditions = []
         exit_conditions = []
 
-        sl, tp = _extract_pips(text)
-        fast, slow = _extract_periods(text)
+        # Work with lowercase for keyword detection
+        text_lower = text.lower()
+
+        sl, tp = _extract_pips(text_lower)
+        fast, slow = _extract_periods(text_lower)
         if fast == slow:
             fast, slow = 10, 50
 
         # ── MACD ──
-        if "macd" in text:
+        if "macd" in text_lower:
             indicators.append({"indicator_type": "macd", "period": 26,
                                "fast_period": 12, "slow_period": 26, "source": "close"})
             entry_conditions.append({
@@ -131,20 +256,20 @@ class MockLLMClient:
             })
 
         # ── RSI ──
-        elif "rsi" in text:
+        elif "rsi" in text_lower:
             rsi_period = 14
-            for m in re.findall(r'rsi\s*(\d+)', text):
+            for m in re.findall(r'rsi\s*(\d+)', text_lower):
                 rsi_period = int(m)
                 break
             indicators.append({"indicator_type": "rsi", "period": rsi_period, "source": "close"})
 
-            if any(w in text for w in ["sobrevendido", "abaixo de 30", "abaixo de 20", "acumulaçã"]):
+            if any(w in text_lower for w in ["sobrevendido", "abaixo de 30", "abaixo de 20", "acumulaçã"]):
                 entry_conditions.append({
                     "condition_type": "threshold",
                     "indicator": "rsi", "operator": "<", "value": 30,
                     "description": f"RSI abaixo de 30 (sobrevendido)",
                 })
-            elif any(w in text for w in ["sobrecomprado", "acima de 70", "vender"]):
+            elif any(w in text_lower for w in ["sobrecomprado", "acima de 70", "vender"]):
                 entry_conditions.append({
                     "condition_type": "threshold",
                     "indicator": "rsi", "operator": ">", "value": 70,
@@ -158,7 +283,7 @@ class MockLLMClient:
                 })
 
         # ── Bollinger ──
-        elif "bollinger" in text or "banda" in text:
+        elif "bollinger" in text_lower or "banda" in text_lower:
             indicators.append({"indicator_type": "bollinger", "period": 20, "source": "close"})
             indicators.append({"indicator_type": "rsi", "period": 14, "source": "close"})
             entry_conditions.append({
@@ -168,7 +293,7 @@ class MockLLMClient:
             })
 
         # ── Stochastic ──
-        elif "estocástic" in text or "stochastic" in text or "%k" in text:
+        elif "estocástic" in text_lower or "stochastic" in text_lower or "%k" in text_lower:
             indicators.append({"indicator_type": "stochastic", "period": 14, "source": "close"})
             indicators.append({"indicator_type": "rsi", "period": 14, "source": "close"})
             entry_conditions.append({
@@ -179,7 +304,7 @@ class MockLLMClient:
             })
 
         # ── ADX ──
-        elif "adx" in text:
+        elif "adx" in text_lower.replace(" ", "") or "adx" in text_lower:
             indicators.append({"indicator_type": "adx", "period": 14, "source": "close"})
             indicators.append({"indicator_type": "sma", "period": slow, "source": "close"})
             entry_conditions.append({
@@ -189,7 +314,7 @@ class MockLLMClient:
             })
 
         # ── ATR ──
-        elif "atr" in text and "breakout" in text:
+        elif "atr" in text_lower and "breakout" in text_lower:
             indicators.append({"indicator_type": "atr", "period": 14, "source": "close"})
             indicators.append({"indicator_type": "sma", "period": slow, "source": "close"})
             entry_conditions.append({
@@ -224,7 +349,7 @@ class MockLLMClient:
         exit_conditions.append({"exit_type": "stop_loss", "pips": sl})
         exit_conditions.append({"exit_type": "take_profit", "pips": tp})
 
-        name = f"Auto: {text[:50]}"
+        name = _generate_strategy_name(text, symbol, timeframe, indicators)
         if len(entry_conditions) == 0:
             entry_conditions.append({
                 "condition_type": "threshold",
