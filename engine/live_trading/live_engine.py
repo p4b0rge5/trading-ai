@@ -118,68 +118,51 @@ class LiveEngine:
     # ── Historical Data ────────────────────────────────────────────────
 
     async def _preload_history(self):
-        """Fetch historical data from MetaApi to warm up indicators.
+        """Fetch historical data to warm up indicators.
 
-        Strategy: use MetaApi REST for historical deals + candles via
-        WebSocket subscription, or fall back to yfinance if MetaApi
-        doesn't have enough history.
+        Strategy: use yfinance for OHLCV data (works for both paper and live modes).
+        MetaApi is used as supplementary source when available.
         """
+        # Primary: always load from yfinance (works in both modes)
+        await self._preload_from_yfinance()
+
+        # Secondary: try MetaApi deals for trade history reference
         try:
-            # Get historical deals (closed trades) for reference
             history_deals = await self.metaapi.get_history_deals(
                 symbol=self.spec.symbol, count=1000
             )
             if history_deals:
-                logger.info(f"Preloaded {len(history_deals)} historical deals")
-
-            # Try to get current candle as sanity check
-            tf = self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe
-            # Map to MetaApi timeframe
-            tf_map = {
-                "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
-                "1h": "H1", "2h": "H2", "4h": "H4", "1d": "D1", "1w": "W1",
-            }
-            metaapi_tf = tf_map.get(tf, "H1")
-
-            candle = await self.metaapi.get_candle(self.spec.symbol, metaapi_tf)
-            if candle:
-                self._buffer.append(LiveBar(
-                    timestamp=datetime.utcfromtimestamp(candle.get('time', 0) / 1000) if candle.get('time', 0) > 1e12 else datetime.utcfromtimestamp(candle.get('time', 0)),
-                    open=candle.get('open', 0),
-                    high=candle.get('high', 0),
-                    low=candle.get('low', 0),
-                    close=candle.get('close', 0),
-                    volume=candle.get('volume', 0),
-                    complete=True,
-                ))
-                logger.info(f"Preloaded candle: {self.spec.symbol} @ {self._buffer[-1].timestamp}")
-
-        except Exception as e:
-            logger.warning(f"Failed to preload from MetaApi: {e}. Using yfinance fallback.")
-            # Fallback: fetch from yfinance
-            await self._preload_from_yfinance()
+                logger.info(f"Preloaded {len(history_deals)} historical deals from MetaApi")
+        except Exception:
+            # Expected for paper mode — no MetaApi connection
+            pass
 
     async def _preload_from_yfinance(self):
-        """Fallback: use yfinance for historical OHLCV data."""
+        """Load historical OHLCV data from yfinance."""
         try:
-            from engine.data_fetcher import DataFetcher
-            fetcher = DataFetcher()
+            from engine.data_fetcher import fetch_ohlcv, resolve_symbol
 
-            timeframe_map = {
-                "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
-                "1h": "1h", "4h": "4h", "1d": "1d", "1w": "1wk",
+            tf = self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe
+
+            # Map our timeframe to yfinance interval + period
+            period_map = {
+                "1m": "1d", "5m": "5d", "15m": "1mo", "30m": "1mo",
+                "1h": "3mo", "4h": "6mo", "1d": "2y", "1w": "5y",
             }
-            yf_tf = timeframe_map.get(
-                self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe,
-                "1h"
-            )
-            yf_symbol = fetcher.resolve_symbol(self.spec.symbol)
+            period = period_map.get(tf, "3mo")
 
-            df = fetcher.fetch(yf_symbol, yf_tf, period="60d" if yf_tf in ("1m", "5m", "15m", "30m") else "2y")
+            df = fetch_ohlcv(self.spec.symbol, tf, n_bars=500, use_real=True)
+
+            if df.empty:
+                logger.warning(f"No yfinance data for {self.spec.symbol}. Session will use live data only.")
+                return
 
             for _, row in df.iterrows():
+                ts = row['timestamp']
+                if hasattr(ts, 'to_pydatetime'):
+                    ts = ts.to_pydatetime()
                 self._buffer.append(LiveBar(
-                    timestamp=row['timestamp'].to_pydatetime() if hasattr(row['timestamp'], 'to_pydatetime') else row['timestamp'],
+                    timestamp=ts,
                     open=float(row['open']),
                     high=float(row['high']),
                     low=float(row['low']),
@@ -188,9 +171,9 @@ class LiveEngine:
                     complete=True,
                 ))
 
-            logger.info(f"Preloaded {len(self._buffer)} bars from yfinance")
+            logger.info(f"Preloaded {len(self._buffer)} bars from yfinance for {self.spec.symbol}")
         except Exception as e:
-            logger.error(f"yfinance fallback also failed: {e}")
+            logger.error(f"yfinance preload failed: {e}")
 
     # ── Tick Processing ────────────────────────────────────────────────
 
@@ -384,3 +367,17 @@ class LiveEngine:
                 self.order_manager.on_trade_update(pos_id, profit, 'open')
         except Exception:
             pass
+
+    def get_status(self) -> dict:
+        """Return engine status for API response."""
+        account_info = self.metaapi.account_info if self.metaapi else {}
+        return {
+            "running": self._running,
+            "symbol": self.spec.symbol,
+            "timeframe": self.spec.timeframe,
+            "buffer_length": len(self._buffer),
+            "tick_count": self._tick_count,
+            "account_info": account_info,
+            "open_trades": self.order_manager.get_open_trades() if self.order_manager else [],
+            "stats": self.order_manager.get_stats() if self.order_manager else {},
+        }

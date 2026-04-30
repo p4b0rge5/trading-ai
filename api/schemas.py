@@ -131,7 +131,9 @@ class TradeResponse(BaseModel):
 
 class LiveSessionCreate(BaseModel):
     strategy_id: int = Field(..., description="Strategy to run live")
-    account_id: int = Field(..., description="MetaApi account ID")
+    account_id: Optional[int] = Field(
+        default=None, description="MetaApi account ID (required for live mode)"
+    )
     mode: str = Field(default="paper", description="paper or live")
 
 

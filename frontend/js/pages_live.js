@@ -2,12 +2,21 @@
  * Live Trading Page — manage and monitor live trading sessions in real time.
  */
 
+// ── Toggle account ID field based on mode ────────────────────────────
+function toggleAccountIdField() {
+    const mode = document.getElementById('live-mode-select').value;
+    const group = document.getElementById('live-account-group');
+    if (group) {
+        group.style.display = (mode === 'live') ? '' : 'none';
+    }
+}
+
 // ── Start a new session ──────────────────────────────────────────────
 async function createSession() {
     const strategyId = parseInt(document.getElementById('live-strategy-select').value);
     const mode = document.getElementById('live-mode-select').value;
-    const accountIdInput = document.getElementById('live-account-id').value;
-    const accountId = accountIdInput ? parseInt(accountIdInput) : 0;
+    const accountIdInput = document.getElementById('live-account-id')?.value;
+    const accountId = (mode === 'live' && accountIdInput) ? parseInt(accountIdInput) : null;
 
     if (!strategyId) {
         Toast.error('Selecione uma estratégia');
@@ -19,11 +28,14 @@ async function createSession() {
     btn.textContent = 'Iniciando...';
 
     try {
-        const data = await API.post('/api/v1/live/sessions', {
+        const payload = {
             strategy_id: strategyId,
-            account_id: accountId,
             mode: mode,
-        });
+        };
+        if (accountId) {
+            payload.account_id = accountId;
+        }
+        const data = await API.post('/api/v1/live/sessions', payload);
         Toast.success(`Sessão ${data.id} iniciada!`);
         closeLiveModal();
         loadLiveSessions();
@@ -207,6 +219,7 @@ function openLiveModal() {
         select.innerHTML = '<option value="">Selecione uma estratégia...</option>' +
             strategies.map(s => `<option value="${s.id}">${s.name} (${s.symbol})</option>`).join('');
     });
+    toggleAccountIdField();
     document.getElementById('live-modal').style.display = 'flex';
 }
 
@@ -249,15 +262,18 @@ async function renderLivePage(app) {
                     </div>
                     <div class="form-group">
                         <label>Modo</label>
-                        <select id="live-mode-select" class="form-input">
-                            <option value="paper">🟡 Paper (Simulação)</option>
-                            <option value="live">🔴 LIVE (Real)</option>
+                        <select id="live-mode-select" class="form-input" onchange="toggleAccountIdField()">
+                            <option value="paper">🟡 Paper (Simulação — dados reais yfinance)</option>
+                            <option value="live">🔴 LIVE (MetaApi)</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="live-account-group" style="display:none">
                         <label>Conta MetaApi (ID)</label>
                         <input id="live-account-id" type="number" class="form-input"
-                            placeholder="Deixe 0 para conta padrão" value="0">
+                            placeholder="ID da conta MetaApi" value="0">
+                        <small style="color:var(--text-muted);display:block;margin-top:4px">
+                            Necessário apenas no modo LIVE. Paper trading não precisa de conta.
+                        </small>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" onclick="closeLiveModal()">Cancelar</button>

@@ -63,14 +63,7 @@ def create_live_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Start a new live trading session."""
-    api_token = settings.metaapi_api_key
-    if not api_token:
-        raise HTTPException(
-            status_code=503,
-            detail="MetaApi API key not configured. Set METAAPI_API_KEY in .env",
-        )
-
+    """Start a new live trading session (paper or live mode)."""
     # Validate strategy exists and belongs to user
     strategy = db.query(Strategy).filter(
         Strategy.id == request.strategy_id,
@@ -79,11 +72,21 @@ def create_live_session(
     if not strategy:
         raise HTTPException(404, "Strategy not found")
 
+    # For live mode, check MetaApi key is configured
+    if request.mode == "live" and not settings.metaapi_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="MetaApi API key not configured. Set METAAPI_API_KEY in .env or use mode='paper'",
+        )
+
+    # For paper mode, no account_id needed
+    account_id = request.account_id or "PAPER"
+
     # Create DB session record
     session = LiveSession(
         strategy_id=strategy.id,
         user_id=current_user.id,
-        account_id=request.account_id,
+        account_id=account_id,
         mode=request.mode,
         status="running",
     )
@@ -99,9 +102,10 @@ def create_live_session(
     # Attach id for tracking
     spec.id = strategy.id
 
+    api_token = settings.metaapi_api_key or ""
     live = LiveTradingSession(
         api_token=api_token,
-        account_id=request.account_id,
+        account_id=account_id,
         strategy_spec=spec,
         db=db,
         session_id=session.id,
@@ -112,13 +116,14 @@ def create_live_session(
     _active_sessions[session.id] = live
     asyncio.create_task(live.start())
 
+    mode_label = "Paper Trading (yfinance)" if request.mode == "paper" else "Live (MetaApi)"
     return {
         "id": session.id,
         "strategy_id": strategy.id,
         "strategy_name": strategy.name,
         "mode": request.mode,
         "status": "running",
-        "message": f"Session created. Connecting to {strategy.symbol}...",
+        "message": f"{mode_label} session created for {strategy.symbol}...",
     }
 
 
