@@ -57,7 +57,7 @@ Router.register('/strategy/:id', async (app) => {
                     </div>
                     ${strategy.description ? `<p class="strategy-desc">${strategy.description}</p>` : ''}
                     <div class="action-bar-buttons">
-                        <button class="btn btn-secondary" onclick="exportMQL5(${strategy.id})">⚙️ Exportar MQL5</button>
+                        <button class="btn btn-secondary" onclick="exportMQL5(${strategy.id})">⚙️ MQL5</button>
                         <button class="btn btn-primary" onclick="Router.navigate('/backtest/run/${id}')">🚀 Backtest</button>
                         <button class="btn btn-danger" onclick="deleteStrategy(${strategy.id})">🗑️ Apagar</button>
                     </div>

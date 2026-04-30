@@ -829,17 +829,19 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
 }
 .action-bar-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 .action-bar-buttons .btn {
     flex: 1 1 auto;
     min-width: 0;
+    padding: 8px 10px;
+    font-size: 13px;
+    min-height: 34px;
 }
 @media (min-width: 600px) {
     .action-bar-buttons .btn {
         flex: 0 1 auto;
-        min-width: 140px;
+        min-width: 120px;
     }
 }
 
