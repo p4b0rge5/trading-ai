@@ -11,20 +11,24 @@ Router.register('/strategy/:id', async (app) => {
                 <div class="breadcrumb">
                     <a onclick="Router.navigate('/strategies')">Estratégias</a>
                     <span class="sep">›</span>
-                    <span class="current">Detalhes</span>
+                    <span class="current">...</span>
                 </div>
-                <h2>Detalhes da Estratégia</h2>
-                <p>Indicadores, regras, gestão de risco e resultados</p>
+                <h2 class="strategy-title">Carregando...</h2>
             </div>
         </div>
         <div id="strategy-detail">
             <div class="loading-overlay"><span class="spinner"></span> Carregando estratégia...</div>
         </div>
     `);
+    setActiveNav('/strategies');
 
     try {
         const strategy = await API.get(`/api/v1/strategies/${id}`);
         const spec = strategy.spec_json || {};
+
+        // Update page header with actual strategy name
+        document.querySelector('.strategy-title').textContent = strategy.name;
+        document.querySelector('.breadcrumb .current').textContent = strategy.name;
 
         const renderIndicator = (ind) => {
             const icons = { sma: '📈', ema: '📈', wma: '📈', rsi: '📊', macd: '📉',
@@ -37,20 +41,22 @@ Router.register('/strategy/:id', async (app) => {
             return `<span class="badge badge-cyan">${label}</span>`;
         };
 
+        const indicators = spec.indicators || [];
+        const entryRules = spec.entry_conditions || [];
+        const exitRules = spec.exit_conditions || [];
+        const risk = spec.risk_management;
+
         document.getElementById('strategy-detail').innerHTML = `
-            <!-- Strategy Header Card -->
-            <div class="card section-gap">
-                <div class="flex flex-col strategy-header-mobile">
-                    <div style="flex:1">
-                        <h3 style="font-size:20px;margin-bottom:8px">${strategy.name}</h3>
-                        <div class="flex flex-wrap gap-8 mb-8">
-                            <span class="badge badge-blue">${strategy.symbol}</span>
-                            <span class="badge badge-purple">${strategy.timeframe}</span>
-                            <span class="badge badge-yellow">${spec.indicators?.length || 0} indicadores</span>
-                        </div>
-                        ${strategy.description ? `<p class="text-sm" style="color:var(--text-secondary)">${strategy.description}</p>` : ''}
+            <!-- Action Bar -->
+            <div class="card section-gap action-bar">
+                <div class="action-bar-body">
+                    <div class="action-bar-tags">
+                        <span class="badge badge-blue">${strategy.symbol}</span>
+                        <span class="badge badge-purple">${strategy.timeframe}</span>
+                        <span class="badge badge-yellow">${indicators.length} indicadores</span>
                     </div>
-                    <div class="btn-group" style="flex-shrink:0">
+                    ${strategy.description ? `<p class="strategy-desc">${strategy.description}</p>` : ''}
+                    <div class="action-bar-buttons">
                         <button class="btn btn-secondary" onclick="exportMQL5(${strategy.id})">⚙️ Exportar MQL5</button>
                         <button class="btn btn-primary" onclick="Router.navigate('/backtest/run/${id}')">🚀 Backtest</button>
                         <button class="btn btn-danger" onclick="deleteStrategy(${strategy.id})">🗑️ Apagar</button>
@@ -58,38 +64,44 @@ Router.register('/strategy/:id', async (app) => {
                 </div>
             </div>
 
-            <!-- Indicators, Entry, Exit, Risk -->
+            <!-- Specs Grid: Indicators, Entry, Exit, Risk -->
             <div class="two-col-grid section-gap">
                 <div class="card">
-                    <h3 style="margin-bottom:12px;font-size:15px">📊 Indicadores</h3>
+                    <div class="card-header">
+                        <h3>📊 Indicadores</h3>
+                    </div>
                     <div class="flex flex-wrap gap-8">
-                        ${(spec.indicators || []).map(renderIndicator).join('') || '<span class="text-muted">Nenhum</span>'}
+                        ${indicators.map(renderIndicator).join('') || '<span class="text-muted">Nenhum</span>'}
                     </div>
                 </div>
 
                 <div class="card">
-                    <h3 style="margin-bottom:12px;font-size:15px">🎯 Regras de Entrada</h3>
-                    <div class="flex flex-wrap gap-8">
-                        ${(spec.entry_conditions || []).map(renderCondition).join('') || '<span class="text-muted">Nenhuma</span>'}
+                    <div class="card-header">
+                        <h3>🎯 Regras de Entrada</h3>
                     </div>
-                </div>
-            </div>
-
-            <div class="two-col-grid section-gap">
-                <div class="card">
-                    <h3 style="margin-bottom:12px;font-size:15px">🚪 Regras de Saída</h3>
                     <div class="flex flex-wrap gap-8">
-                        ${(spec.exit_conditions || []).map(renderCondition).join('') || '<span class="text-muted">Nenhuma</span>'}
+                        ${entryRules.map(renderCondition).join('') || '<span class="text-muted">Nenhuma</span>'}
                     </div>
                 </div>
 
                 <div class="card">
-                    <h3 style="margin-bottom:12px;font-size:15px">🛡️ Gestão de Risco</h3>
-                    ${spec.risk_management ? `
-                        <div class="risk-row"><span class="label">Risk per trade</span><span class="value">${spec.risk_management.position_size_pct}%</span></div>
-                        <div class="risk-row"><span class="label">Max open trades</span><span class="value">${spec.risk_management.max_open_trades}</span></div>
-                        <div class="risk-row"><span class="label">Max daily loss</span><span class="value">${spec.risk_management.max_daily_loss_pct}%</span></div>
-                        <div class="risk-row"><span class="label">Max drawdown</span><span class="value">${spec.risk_management.max_drawdown_pct}%</span></div>
+                    <div class="card-header">
+                        <h3>🚪 Regras de Saída</h3>
+                    </div>
+                    <div class="flex flex-wrap gap-8">
+                        ${exitRules.map(renderCondition).join('') || '<span class="text-muted">Nenhuma</span>'}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🛡️ Gestão de Risco</h3>
+                    </div>
+                    ${risk ? `
+                        <div class="risk-row"><span class="label">Risk per trade</span><span class="value">${risk.position_size_pct}%</span></div>
+                        <div class="risk-row"><span class="label">Max open trades</span><span class="value">${risk.max_open_trades}</span></div>
+                        <div class="risk-row"><span class="label">Max daily loss</span><span class="value">${risk.max_daily_loss_pct}%</span></div>
+                        <div class="risk-row"><span class="label">Max drawdown</span><span class="value">${risk.max_drawdown_pct}%</span></div>
                     ` : '<span class="text-muted">Default</span>'}
                 </div>
             </div>

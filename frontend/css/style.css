@@ -810,17 +810,37 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
     gap: 12px;
 }
 
-/* Mobile: strategy detail header → stacked */
-.strategy-header-mobile {
+/* Action bar: strategy detail header with tags, description, buttons */
+.action-bar-body {
+    display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
-.strategy-header-mobile > div:last-child {
-    width: 100%;
+.action-bar-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
-.strategy-header-mobile .btn {
-    flex: 1;
-    justify-content: center;
+.strategy-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+.action-bar-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.action-bar-buttons .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+@media (min-width: 600px) {
+    .action-bar-buttons .btn {
+        flex: 0 1 auto;
+        min-width: 140px;
+    }
 }
 
 /* Mobile: tables → card view */
