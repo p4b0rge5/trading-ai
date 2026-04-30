@@ -213,11 +213,18 @@ async function stopSession(sessionId) {
 
 // ── Modal ────────────────────────────────────────────────────────────
 function openLiveModal() {
-    // Load user's strategies for the dropdown
-    API.get('/api/v1/strategies').then(strategies => {
-        const select = document.getElementById('live-strategy-select');
+    const select = document.getElementById('live-strategy-select');
+    select.innerHTML = '<option value="">Carregando...</option>';
+
+    API.get('/api/v1/strategies/').then(strategies => {
         select.innerHTML = '<option value="">Selecione uma estratégia...</option>' +
-            strategies.map(s => `<option value="${s.id}">${s.name} (${s.symbol})</option>`).join('');
+            (strategies.length > 0
+                ? strategies.map(s => `<option value="${s.id}">${s.name} (${s.symbol})</option>`).join('')
+                : '<option value="">Nenhuma estratégia encontrada — crie uma primeiro</option>');
+    }).catch(e => {
+        console.error('[Live] Failed to load strategies:', e);
+        select.innerHTML = '<option value="">Erro ao carregar — verifique se está logado</option>';
+        Toast.error(e.message || 'Falha ao carregar estratégias');
     });
     toggleAccountIdField();
     document.getElementById('live-modal').style.display = 'flex';
