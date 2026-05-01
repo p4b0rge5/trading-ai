@@ -1,5 +1,6 @@
 /**
  * App Layout: Sidebar + Content wrapper with mobile hamburger menu
+ * Theme toggle (light/dark) with localStorage persistence
  */
 function renderLayout(content) {
     const user = Auth.user();
@@ -21,7 +22,13 @@ function renderLayout(content) {
                 </svg>
                 Trading AI
             </span>
-            <div class="avatar" style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0">${initial}</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Trocar tema" aria-label="Toggle theme">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <div class="avatar" style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0">${initial}</div>
+            </div>
         </div>
 
         <!-- Overlay (mobile only) -->
@@ -64,6 +71,10 @@ function renderLayout(content) {
                     <div class="user-name">${user?.full_name || user?.username || 'User'}</div>
                     <div class="user-email">${user?.email || ''}</div>
                 </div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Trocar tema" aria-label="Toggle theme">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
                 <button class="btn-logout" onclick="Auth.logout();Router.navigate('/login')" title="Sair">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
@@ -75,6 +86,33 @@ function renderLayout(content) {
         </main>
     </div>`;
 }
+
+// ── Theme Toggle ─────────────────────────────────────────────────────
+function getCurrentTheme() {
+    return localStorage.getItem('theme') || 'dark';
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    // Update all theme toggle buttons
+    document.querySelectorAll('.theme-toggle').forEach(btn => {
+        const sun = btn.querySelector('.icon-sun');
+        const moon = btn.querySelector('.icon-moon');
+        if (sun) sun.style.display = theme === 'dark' ? 'block' : 'none';
+        if (moon) moon.style.display = theme === 'dark' ? 'none' : 'block';
+    });
+}
+
+function toggleTheme() {
+    const current = getCurrentTheme();
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// Apply saved theme on load
+(function() {
+    applyTheme(getCurrentTheme());
+})();
 
 // ── Toggle Sidebar (mobile) ─────────────────────────────────────────────
 function toggleSidebar() {
