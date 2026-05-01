@@ -71,6 +71,7 @@ class LiveEngine:
         self._last_signal_bar: int = -1
         self._tick_count = 0
         self._eval_lock = asyncio.Lock()
+        self._stop_event: asyncio.Event | None = None
 
         # Signal callbacks (for frontend WebSocket)
         self._signal_callbacks: list = []
@@ -82,6 +83,7 @@ class LiveEngine:
         if self._running:
             return
         self._running = True
+        self._stop_event = asyncio.Event()
 
         # Preload historical bars for indicator warm-up
         await self._preload_history()
@@ -100,10 +102,21 @@ class LiveEngine:
         self.metaapi.on("deal", self._on_deal)
         self.metaapi.on("position", self._on_position)
 
+        # Initial evaluation on preloaded data
+        self._evaluate()
+
         logger.info(
             f"LiveEngine started: {self.spec.symbol} | {self.spec.timeframe} "
             f"| {len(self._buffer)} historical bars"
         )
+
+    async def stop(self):
+        """Stop engine, close all open trades."""
+        self._running = False
+        if self._stop_event:
+            self._stop_event.set()
+        await self.order_manager.close_all()
+        logger.info(f"LiveEngine stopped (session {self.session_id})")
 
     async def stop(self):
         """Stop engine, close all open trades."""
@@ -280,7 +293,7 @@ class LiveEngine:
     # ── Signal Evaluation ──────────────────────────────────────────────
 
     def _evaluate(self):
-        """Run StrategyInterpreter on accumulated bars."""
+        """Run StrategyInterpreter on accumulated bars and execute new signals."""
         if len(self._buffer) < 50:
             return  # Not enough data
 
@@ -305,36 +318,130 @@ class LiveEngine:
         try:
             trades = self.interpreter.run(df)
 
-            # Find new trades not yet in order_manager
-            existing_symbols = set(self.order_manager._open_trades.keys())
-            for trade in trades:
-                if trade.exit_time is None:  # Open trade signal
-                    trade_key = f"{trade.side}_{self.spec.symbol}"
-                    if trade_key not in existing_symbols:
-                        signal = {
-                            'side': trade.side,
-                            'price': trade.entry_price,
-                            'reason': trade.reason,
-                        }
-                        asyncio.create_task(
-                            self.order_manager.execute_signal(signal)
-                        )
-                        existing_symbols.add(trade_key)
+            # Only look at trades on the LAST bar (skip historical trades
+            # that already occurred in the preloaded data).
+            last_bar_ts = self._buffer[-1].timestamp
+            existing_keys = set(self.order_manager._open_trades.keys())
 
-                        # Notify callbacks
-                        for cb in self._signal_callbacks:
-                            try:
-                                cb("signal", {
-                                    'type': trade.side,
-                                    'price': trade.entry_price,
-                                    'reason': trade.reason,
-                                    'time': trade.entry_time.isoformat() if trade.entry_time else None,
-                                })
-                            except Exception:
-                                pass
+            for trade in trades:
+                if trade.exit_time is not None:
+                    continue  # Closed trade — skip
+
+                # Skip historical trades: only act on signals from the latest
+                # bar (or very recent bars within 2x the timeframe).
+                if trade.entry_time is not None:
+                    trade_age = (last_bar_ts - trade.entry_time).total_seconds()
+                    if trade_age > self._bar_seconds * 2:
+                        continue  # Old signal from preloaded history
+
+                trade_key = f"{trade.side}_{self.spec.symbol}"
+                if trade_key not in existing_keys:
+                    signal = {
+                        'side': trade.side,
+                        'price': trade.entry_price,
+                        'reason': trade.reason,
+                    }
+                    asyncio.create_task(
+                        self.order_manager.execute_signal(signal)
+                    )
+                    existing_keys.add(trade_key)
+
+                    # Notify callbacks
+                    for cb in self._signal_callbacks:
+                        try:
+                            cb("signal", {
+                                'type': trade.side,
+                                'price': trade.entry_price,
+                                'reason': trade.reason,
+                                'time': trade.entry_time.isoformat() if trade.entry_time else None,
+                            })
+                        except Exception:
+                            pass
 
         except Exception as e:
             logger.error(f"Signal evaluation error: {e}")
+
+    # ── Continuous Candle Polling (Paper Mode Fallback) ─────────────────
+
+    async def _poll_candles(self):
+        """Periodically fetch the latest candle from yfinance and evaluate.
+
+        This is a fallback for paper mode when tick/candle events are
+        unreliable (e.g., yfinance drops intraday forex data).
+        """
+        import asyncio
+        tf = self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe
+        poll_interval = self._bar_seconds  # Check once per timeframe
+
+        logger.info(f"Polling loop started: fetching new {tf} candles every {poll_interval}s")
+
+        while self._running and not self._stop_event.is_set():
+            try:
+                # Sleep until stop signal or timeout
+                stop_task = asyncio.create_task(self._stop_event.wait())
+                sleep_task = asyncio.create_task(asyncio.sleep(poll_interval))
+
+                done, pending = await asyncio.wait(
+                    [stop_task, sleep_task], return_when=asyncio.FIRST_COMPLETED
+                )
+                for t in pending:
+                    t.cancel()
+
+                if self._stop_event.is_set():
+                    break
+
+                new_bar = await self._fetch_latest_bar(tf)
+                if new_bar:
+                    self._add_bar_to_buffer(new_bar)
+                    self._evaluate()
+                    logger.info(f"Poll: bar {new_bar.timestamp}, buffer={len(self._buffer)}, trades={len(self.order_manager._open_trades)}")
+                else:
+                    logger.debug("Poll: no new bar from yfinance")
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Poll candle error: {e}", exc_info=True)
+                await asyncio.sleep(poll_interval)
+
+    async def _fetch_latest_bar(self, timeframe: str) -> LiveBar | None:
+        """Fetch the most recent completed bar from yfinance."""
+        try:
+            from engine.data_fetcher import fetch_ohlcv
+            df = fetch_ohlcv(self.spec.symbol, timeframe, n_bars=3, use_real=True)
+            if df.empty:
+                return None
+
+            row = df.iloc[-1]
+            ts = row['timestamp']
+            if hasattr(ts, 'to_pydatetime'):
+                ts = ts.to_pydatetime()
+
+            return LiveBar(
+                timestamp=ts,
+                open=float(row['open']),
+                high=float(row['high']),
+                low=float(row['low']),
+                close=float(row['close']),
+                volume=float(row.get('volume', 0)),
+                complete=True,
+            )
+        except Exception as e:
+            logger.debug(f"Fetch latest bar error: {e}")
+            return None
+
+    def _add_bar_to_buffer(self, bar: LiveBar):
+        """Add a new bar, avoiding duplicates."""
+        if self._buffer and self._buffer[-1].timestamp == bar.timestamp:
+            return  # Duplicate — skip
+
+        # If we have a forming bar, finalize it first
+        if self._current_bar and not self._current_bar.complete:
+            self._current_bar.complete = True
+            self._buffer.append(self._current_bar)
+
+        self._buffer.append(bar)
+        self._current_bar = None
 
     # ── MetaApi Event Handlers ─────────────────────────────────────────
 

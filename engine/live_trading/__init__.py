@@ -104,6 +104,9 @@ class LiveSession:
             f"{self.strategy_spec.symbol} | mode=paper"
         )
 
+        # 6. Keep running — continuous evaluation loop
+        await self.engine._poll_candles()
+
     async def _start_live(self):
         """Start live trading mode with MetaApi."""
         from .metaapi_client import MetaApiClient
@@ -135,6 +138,9 @@ class LiveSession:
             f"Live Trading Session {self.session_id} started: "
             f"{self.strategy_spec.symbol} | mode=live"
         )
+
+        # 6. Keep running — continuous evaluation loop
+        await self.engine._poll_candles()
 
     async def stop(self):
         """Stop the session, close trades, disconnect."""
