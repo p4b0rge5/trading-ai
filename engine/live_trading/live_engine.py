@@ -292,8 +292,13 @@ class LiveEngine:
 
     # ── Signal Evaluation ──────────────────────────────────────────────
 
-    def _evaluate(self):
-        """Run StrategyInterpreter on accumulated bars and execute new signals."""
+    def _evaluate(self, force: bool = False):
+        """Run StrategyInterpreter on accumulated bars and execute new signals.
+
+        Args:
+            force: If True, evaluate even without a new bar (e.g., when price
+                   moved on the forming candle).
+        """
         if len(self._buffer) < 50:
             return  # Not enough data
 
@@ -310,7 +315,7 @@ class LiveEngine:
 
         # Check if we have a new bar since last signal check
         current_len = len(df)
-        if current_len == self._last_signal_bar:
+        if not force and current_len == self._last_signal_bar:
             return  # No new bar
 
         self._last_signal_bar = current_len
@@ -364,12 +369,17 @@ class LiveEngine:
     # ── Continuous Candle Polling (Paper Mode Fallback) ─────────────────
 
     async def _poll_candles(self):
-        """Periodically fetch the latest candle from yfinance and evaluate.
+        """Periodically fetch new candles or update forming candle price.
 
-        This is a fallback for paper mode when tick/candle events are
-        unreliable (e.g., yfinance drops intraday forex data).
+        Two modes:
+        1. If yfinance has a new completed bar → add to buffer + evaluate
+        2. If no new bar → update the last bar's close with live price +
+           force-evaluate (catches signals triggered by price movement on
+           the forming candle)
         """
         import asyncio
+        from engine.data_fetcher import resolve_symbol, get_current_price
+
         tf = self.spec.timeframe.value if hasattr(self.spec.timeframe, 'value') else self.spec.timeframe
         poll_interval = self._bar_seconds  # Check once per timeframe
 
@@ -392,11 +402,32 @@ class LiveEngine:
 
                 new_bar = await self._fetch_latest_bar(tf)
                 if new_bar:
-                    self._add_bar_to_buffer(new_bar)
-                    self._evaluate()
-                    logger.info(f"Poll: bar {new_bar.timestamp}, buffer={len(self._buffer)}, trades={len(self.order_manager._open_trades)}")
+                    # Check if it's actually newer than our last bar
+                    if self._buffer and new_bar.timestamp == self._buffer[-1].timestamp:
+                        # Same bar — update close price if changed
+                        if abs(new_bar.close - self._buffer[-1].close) > 1e-8:
+                            self._buffer[-1].close = new_bar.close
+                            self._buffer[-1].high = max(self._buffer[-1].high, new_bar.close)
+                            self._buffer[-1].low = min(self._buffer[-1].low, new_bar.close)
+                            self._evaluate(force=True)
+                            logger.info(f"Poll: updated close={new_bar.close:.5f}, buffer={len(self._buffer)}, trades={len(self.order_manager._open_trades)}")
+                        else:
+                            logger.debug(f"Poll: no change, buffer={len(self._buffer)}")
+                    else:
+                        self._add_bar_to_buffer(new_bar)
+                        self._evaluate()
+                        logger.info(f"Poll: NEW bar {new_bar.timestamp}, buffer={len(self._buffer)}, trades={len(self.order_manager._open_trades)}")
                 else:
-                    logger.debug("Poll: no new bar from yfinance")
+                    # No data from yfinance — try updating with live price
+                    price = get_current_price(self.spec.symbol)
+                    if price and self._buffer:
+                        self._buffer[-1].close = price
+                        self._buffer[-1].high = max(self._buffer[-1].high, price)
+                        self._buffer[-1].low = min(self._buffer[-1].low, price)
+                        self._evaluate(force=True)
+                        logger.info(f"Poll: live price update close={price:.5f}, trades={len(self.order_manager._open_trades)}")
+                    else:
+                        logger.debug("Poll: no new data available")
 
             except asyncio.CancelledError:
                 break
@@ -407,7 +438,7 @@ class LiveEngine:
     async def _fetch_latest_bar(self, timeframe: str) -> LiveBar | None:
         """Fetch the most recent completed bar from yfinance."""
         try:
-            from engine.data_fetcher import fetch_ohlcv
+            from engine.data_fetcher import fetch_ohlcv, resolve_symbol
             df = fetch_ohlcv(self.spec.symbol, timeframe, n_bars=3, use_real=True)
             if df.empty:
                 return None
@@ -416,6 +447,14 @@ class LiveEngine:
             ts = row['timestamp']
             if hasattr(ts, 'to_pydatetime'):
                 ts = ts.to_pydatetime()
+
+            # Reject sample data: timestamps should be within last 24h
+            from datetime import datetime, timedelta, timezone
+            now = datetime.now(tz=timezone.utc)
+            ts_naive = ts.replace(tzinfo=None) if ts.tzinfo else ts
+            if abs((now - ts_naive).total_seconds()) > 86400:
+                logger.debug(f"Poll: rejecting stale bar {ts} (older than 24h, likely sample data)")
+                return None
 
             return LiveBar(
                 timestamp=ts,

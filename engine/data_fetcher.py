@@ -128,7 +128,11 @@ def reverse_resolve(yf_symbol: str) -> str:
 
 
 def timeframe_to_range(timeframe: str, n_bars: int) -> dict:
-    """Calculate the date range needed to get n_bars of a given timeframe."""
+    """Calculate the date range needed to get n_bars of a given timeframe.
+
+    Enforces a minimum of 1 day range for intraday timeframes because
+    yfinance requires at least a 24-hour window for intraday intervals.
+    """
     tf_map = {
         "1m": {"multiplier": 1, "unit_minutes": 1},
         "5m": {"multiplier": 1, "unit_minutes": 5},
@@ -148,6 +152,10 @@ def timeframe_to_range(timeframe: str, n_bars: int) -> dict:
         days_needed = n_bars * config["multiplier"] * config["unit_days"]
     else:
         days_needed = (n_bars * config["multiplier"] * config["unit_minutes"]) / (60 * 24)
+
+    # yfinance needs at least 1 day range for intraday intervals
+    # and 3 days gives a buffer for timezone/weekend gaps
+    days_needed = max(days_needed, 3)
 
     start_date = end_date - timedelta(days=min(days_needed, 5000))  # Max ~13.7 years
     return {"start": start_date.strftime("%Y-%m-%d"), "end": end_date.strftime("%Y-%m-%d")}
