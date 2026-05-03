@@ -53,7 +53,9 @@ let _pollTimers = {};
 async function loadLiveSessions() {
     try {
         const sessions = await API.get('/api/v1/live/sessions');
-        renderSessionsList(sessions);
+        // Only show running sessions
+        const running = sessions.filter(s => s.status === 'running');
+        renderSessionsList(running);
 
         // Clear old timers, start fresh polling for running sessions
         for (const id in _pollTimers) clearInterval(_pollTimers[id]);
@@ -112,36 +114,41 @@ function updateSessionCard(sessionId, session) {
     const card = document.querySelector(`[data-session-id="${sessionId}"]`);
     if (!card) return;
 
+    // Update highlights (Equity + Balance)
+    const highlightsRow = card.querySelector('.live-session-highlights');
+    if (highlightsRow) {
+        highlightsRow.innerHTML = `
+            <div class="live-highlight">
+                <div class="stat-label">Equity</div>
+                <div class="live-highlight-value">${formatCurrency(session.equity || 0)}</div>
+            </div>
+            <div class="live-highlight">
+                <div class="stat-label">Balance</div>
+                <div class="live-highlight-value">${formatCurrency(session.balance || 0)}</div>
+            </div>
+        `;
+    }
+
+    // Update stats row (Daily PnL, Unrealized, Abertas, Total, Win Rate)
     const statsRow = card.querySelector('.live-session-stats');
     if (statsRow) {
         const closedCount = session.closed_trades_count || 0;
         const unrealized = session.unrealized_pnl || 0;
         const unrealizedClass = unrealized >= 0 ? 'text-green' : 'text-red';
+        const dailyClass = session.daily_pnl > 0 ? 'text-green' : session.daily_pnl < 0 ? 'text-red' : '';
 
         statsRow.innerHTML = `
             <div class="stat-item">
-                <div class="stat-label">Equity</div>
-                <div class="stat-value">${formatCurrency(session.equity || 0)}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Balance</div>
-                <div class="stat-value">${formatCurrency(session.balance || 0)}</div>
-            </div>
-            <div class="stat-item">
                 <div class="stat-label">Daily P&L</div>
-                <div class="stat-value ${session.daily_pnl >= 0 ? 'text-green' : 'text-red'}">
-                    ${formatPnL(session.daily_pnl)}
-                </div>
+                <div class="stat-value ${dailyClass}">${formatPnL(session.daily_pnl)}</div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">Unrealized</div>
-                <div class="stat-value ${unrealizedClass}">
-                    ${formatPnL(unrealized)}
-                </div>
+                <div class="stat-value ${unrealizedClass}">${formatPnL(unrealized)}</div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">Abertas</div>
-                <div class="stat-value" style="color:var(--accent)">${session.open_trades_count || 0}</div>
+                <div class="stat-value stat-accent">${session.open_trades_count || 0}</div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">Total</div>
@@ -161,8 +168,8 @@ function renderSessionsList(sessions) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">📡</div>
-                <h3>Nenhuma sessão encontrada</h3>
-                <p>Crie uma estratégia e inicie uma sessão de trading ao vivo.</p>
+                <h3>Nenhuma sessão ativa</h3>
+                <p>Inicie uma sessão de trading para acompanhar em tempo real.</p>
                 <button class="btn btn-primary" onclick="openLiveModal()">
                     Criar Sessão
                 </button>
@@ -171,11 +178,11 @@ function renderSessionsList(sessions) {
     }
 
     container.innerHTML = sessions.map(s => {
-        const statusClass = s.status === 'running' ? 'badge-green' : 'badge-gray';
         const modeIcon = s.mode === 'live' ? '🔴' : '🟡';
         const modeLabel = s.mode === 'live' ? 'LIVE' : 'Paper';
         const unrealized = s.unrealized_pnl || 0;
         const unrealizedClass = unrealized >= 0 ? 'text-green' : 'text-red';
+        const dailyClass = s.daily_pnl > 0 ? 'text-green' : s.daily_pnl < 0 ? 'text-red' : '';
         const closedCount = s.closed_trades_count || 0;
 
         return `
@@ -185,41 +192,35 @@ function renderSessionsList(sessions) {
                     <span style="font-size:20px">${modeIcon}</span>
                     <span>${s.strategy_name || 'Sem estratégia'}</span>
                     <span class="badge badge-yellow" style="font-size:0.7rem">${modeLabel}</span>
-                    <span class="badge ${statusClass}">${s.status === 'running' ? '● Rodando' : '● Parada'}</span>
+                    <span class="badge badge-green">● Rodando</span>
                 </div>
                 <div class="live-session-actions">
-                    ${s.status === 'running' ? `
-                        <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Detalhes</button>
-                        <button class="btn btn-sm btn-danger" onclick="stopSession(${s.id})">Parar</button>
-                    ` : `
-                        <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Ver</button>
-                    `}
+                    <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Detalhes</button>
+                    <button class="btn btn-sm btn-danger" onclick="stopSession(${s.id})">Parar</button>
+                </div>
+            </div>
+            <div class="live-session-highlights">
+                <div class="live-highlight">
+                    <div class="stat-label">Equity</div>
+                    <div class="live-highlight-value">${formatCurrency(s.equity || 0)}</div>
+                </div>
+                <div class="live-highlight">
+                    <div class="stat-label">Balance</div>
+                    <div class="live-highlight-value">${formatCurrency(s.balance || 0)}</div>
                 </div>
             </div>
             <div class="live-session-stats">
                 <div class="stat-item">
-                    <div class="stat-label">Equity</div>
-                    <div class="stat-value">${formatCurrency(s.equity || 0)}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Balance</div>
-                    <div class="stat-value">${formatCurrency(s.balance || 0)}</div>
-                </div>
-                <div class="stat-item">
                     <div class="stat-label">Daily P&L</div>
-                    <div class="stat-value ${s.daily_pnl > 0 ? 'text-green' : s.daily_pnl < 0 ? 'text-red' : ''}">
-                        ${formatPnL(s.daily_pnl)}
-                    </div>
+                    <div class="stat-value ${dailyClass}">${formatPnL(s.daily_pnl)}</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Unrealized</div>
-                    <div class="stat-value ${unrealizedClass}">
-                        ${formatPnL(unrealized)}
-                    </div>
+                    <div class="stat-value ${unrealizedClass}">${formatPnL(unrealized)}</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Abertas</div>
-                    <div class="stat-value" style="color:var(--accent)">${s.open_trades_count || 0}</div>
+                    <div class="stat-value stat-accent">${s.open_trades_count || 0}</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Total</div>
