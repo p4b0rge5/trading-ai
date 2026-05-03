@@ -118,12 +118,6 @@ class LiveEngine:
         await self.order_manager.close_all()
         logger.info(f"LiveEngine stopped (session {self.session_id})")
 
-    async def stop(self):
-        """Stop engine, close all open trades."""
-        self._running = False
-        await self.order_manager.close_all()
-        logger.info(f"LiveEngine stopped (session {self.session_id})")
-
     def on_signal(self, callback):
         """Register a callback for new signals: callback(signal_type, details)."""
         self._signal_callbacks.append(callback)
@@ -321,24 +315,40 @@ class LiveEngine:
         self._last_signal_bar = current_len
 
         try:
-            trades = self.interpreter.run(df)
+            # Use live_mode=True so the interpreter does NOT auto-close the
+            # last open trade, and start_from to skip historical entries.
+            # Only check the last 2 bars for new entry signals. This prevents
+            # re-trading every historical signal on each re-evaluation.
+            start_bar = len(df) - 2
+            trades = self.interpreter.run(df, start_from=start_bar, live_mode=True)
 
-            # Only look at trades on the LAST bar (skip historical trades
-            # that already occurred in the preloaded data).
+            # Filter: only trades from the most recent bars
             last_bar_ts = self._buffer[-1].timestamp
             existing_keys = set(self.order_manager._open_trades.keys())
 
             for trade in trades:
+                # Process closed trades — update order_manager
                 if trade.exit_time is not None:
-                    continue  # Closed trade — skip
+                    # This is a closed trade from the evaluation window.
+                    # Check if we already have this trade open and need to close it.
+                    trade_key = f"{trade.side}_{self.spec.symbol}"
+                    if trade_key in existing_keys:
+                        # Try to match by entry_time and close it
+                        for tid, ot in list(self.order_manager._open_trades.items()):
+                            if ot.entry_time == trade.entry_time and ot.side == trade.side:
+                                asyncio.create_task(
+                                    self.order_manager.close_trade(
+                                        tid, trade.exit_price, trade.reason or "exit"
+                                    )
+                                )
+                                logger.info(
+                                    f"Trade {tid} closed via interpreter: "
+                                    f"{trade.side} {trade.reason} @ {trade.exit_price}"
+                                )
+                                break
+                    continue
 
-                # Skip historical trades: only act on signals from the latest
-                # bar (or very recent bars within 2x the timeframe).
-                if trade.entry_time is not None:
-                    trade_age = (last_bar_ts - trade.entry_time).total_seconds()
-                    if trade_age > self._bar_seconds * 2:
-                        continue  # Old signal from preloaded history
-
+                # Open trade — this is a new signal
                 trade_key = f"{trade.side}_{self.spec.symbol}"
                 if trade_key not in existing_keys:
                     signal = {
@@ -350,6 +360,10 @@ class LiveEngine:
                         self.order_manager.execute_signal(signal)
                     )
                     existing_keys.add(trade_key)
+                    logger.info(
+                        f"NEW SIGNAL: {trade.side.upper()} {self.spec.symbol} "
+                        f"@ {trade.entry_price} ({trade.reason})"
+                    )
 
                     # Notify callbacks
                     for cb in self._signal_callbacks:

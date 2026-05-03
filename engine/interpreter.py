@@ -63,6 +63,8 @@ class StrategyInterpreter:
         self,
         data: pd.DataFrame,
         initial_balance: float = 10_000.0,
+        start_from: int = 0,
+        live_mode: bool = False,
     ) -> list[Trade]:
         """
         Run the strategy over a full DataFrame.
@@ -70,6 +72,12 @@ class StrategyInterpreter:
         Args:
             data: DataFrame with columns: open, high, low, close, volume, timestamp
             initial_balance: Starting balance for position sizing
+            start_from: Skip entry checks for bars before this index (useful in
+                live mode to avoid re-trading historical signals). Exits are
+                still evaluated for all bars so existing trades get closed.
+            live_mode: If True, do NOT auto-close the last open trade at the
+                final bar (the trade is still live). Returns open trades as
+                potentially new signals.
 
         Returns:
             List of Trade objects (both open and closed)
@@ -119,8 +127,8 @@ class StrategyInterpreter:
                     current_balance += open_trade.profit or 0
                     open_trade = None
 
-            # Check entry conditions
-            if open_trade is None:
+            # Check entry conditions (skip historical bars in live mode)
+            if open_trade is None and bar_idx >= start_from:
                 entry_signal = self._check_entry(bar_idx, data)
                 if entry_signal:
                     self._open_trade_bar = bar_idx
@@ -135,8 +143,8 @@ class StrategyInterpreter:
                         reason=entry_signal["reason"],
                     )
 
-        # Close any remaining open trade at last bar
-        if open_trade is not None:
+        # Close any remaining open trade at last bar (backtest mode only)
+        if open_trade is not None and not live_mode:
             last_bar = data.iloc[-1]
             open_trade.exit_time = last_bar["timestamp"]
             last_close = float(last_bar["close"])
@@ -148,6 +156,8 @@ class StrategyInterpreter:
                 current_balance,
             )
             trades.append(open_trade)
+        elif open_trade is not None and live_mode:
+            trades.append(open_trade)  # Keep open — still live
 
         return trades
 
