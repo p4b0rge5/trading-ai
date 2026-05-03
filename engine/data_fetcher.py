@@ -91,6 +91,9 @@ SYMBOL_MAP = {
     "SBSP3":  "SBSP3.SA",
     "SANB3":  "SANB3.SA",
     "TOTS3":  "TOTS3.SA",
+    # B3 Indices/Futures proxies (yfinance doesn't have WIN/WDO futures)
+    "IBOV":   "^BVSP",    # Ibovespa index (WIN follows this)
+    "USDBRL": "USDBRL=X", # USD/BRL spot (WDO proxy)
 }
 
 # Supported timeframe mappings: our internal → yfinance interval + period
@@ -256,6 +259,8 @@ def get_available_symbols() -> list[dict]:
 
         if ".SA" in yf_sym:
             result.append({"symbol": sym, "type": "b3", "ticker": yf_sym, "currency": "BRL"})
+        elif sym in ("IBOV", "USDBRL"):
+            result.append({"symbol": sym, "type": "b3-futures", "ticker": yf_sym, "currency": "BRL"})
         elif any(sym.startswith(p) for p in ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOT", "DOGE", "AVAX", "MATIC"]):
             result.append({"symbol": sym, "type": "crypto", "ticker": yf_sym, "currency": "USD"})
         else:
