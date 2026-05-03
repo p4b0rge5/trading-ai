@@ -36,6 +36,8 @@ from engine.models import StrategySpec
 
 from .live_engine import LiveEngine
 from .order_manager import OrderManager
+from .session_registry import register as _register_session
+from .session_registry import unregister as _unregister_session
 
 logger = logging.getLogger(__name__)
 
@@ -124,13 +126,18 @@ class LiveSession:
             )
 
         self._running = True
+        _register_session(self)
         logger.info(
             f"Paper Trading Session {self.session_id} started: "
             f"{self.strategy_spec.symbol} | mode=paper"
         )
 
         # 6. Keep running — continuous evaluation loop
-        await self.engine._poll_candles()
+        try:
+            await self.engine._poll_candles()
+        finally:
+            self._running = False
+            _unregister_session(self.session_id)
 
     async def _start_live(self):
         """Start live trading mode with MetaApi."""
@@ -175,13 +182,18 @@ class LiveSession:
             )
 
         self._running = True
+        _register_session(self)
         logger.info(
             f"Live Trading Session {self.session_id} started: "
             f"{self.strategy_spec.symbol} | mode=live"
         )
 
         # 6. Keep running — continuous evaluation loop
-        await self.engine._poll_candles()
+        try:
+            await self.engine._poll_candles()
+        finally:
+            self._running = False
+            _unregister_session(self.session_id)
 
     async def stop(self):
         """Stop the session, close trades, disconnect."""
@@ -226,4 +238,50 @@ class LiveSession:
             "mode": self.mode,
             "strategy_name": self.strategy_spec.name,
             **engine_status,
+        }
+
+    def get_trades_info(self) -> dict:
+        """Get in-memory trade info (open trades, equity, P&L, counts)."""
+        if not self.order_mgr:
+            return {"open_trades": [], "total_trades": 0, "win_rate": 0.0,
+                    "equity": 0.0, "balance": 0.0, "daily_pnl": 0.0}
+
+        # Gather open trades
+        open_trades = []
+        for t in self.order_mgr._open_trades.values():
+            open_trades.append({
+                "id": t.trade_id,
+                "metaapi_trade_id": t.trade_id,
+                "side": t.side,
+                "entry_time": t.entry_time.isoformat() if t.entry_time else None,
+                "entry_price": t.entry_price,
+                "volume": t.volume,
+                "sl": t.sl,
+                "tp": t.tp,
+                "profit": t.profit or 0.0,
+                "pips": t.pips if hasattr(t, 'pips') else None,
+            })
+
+        # Calculate summary from order_manager
+        all_trades = list(self.order_mgr._open_trades.values()) + self.order_mgr._closed_trades
+        total = len(all_trades)
+        wins = sum(1 for t in self.order_mgr._closed_trades if (t.profit or 0) > 0)
+        win_rate = (wins / total * 100) if total > 0 else 0.0
+
+        # Get equity from paper client
+        equity = 0.0
+        balance = 0.0
+        if self.client and hasattr(self.client, '_equity'):
+            equity = self.client._equity
+            balance = self.client._balance
+
+        daily_pnl = sum(t.profit or 0 for t in self.order_mgr._closed_trades)
+
+        return {
+            "open_trades": open_trades,
+            "total_trades": total,
+            "win_rate": win_rate,
+            "equity": round(equity, 2),
+            "balance": round(balance, 2),
+            "daily_pnl": round(daily_pnl, 2),
         }

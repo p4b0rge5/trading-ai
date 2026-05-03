@@ -542,7 +542,18 @@ class PaperTradingClient:
     def _calc_unrealized_pnl(self, pos: PaperPosition, current_price: float) -> float:
         """Calculate unrealized P&L for a position."""
         diff = current_price - pos.entry_price
-        contract_size = 100000  # Standard lot
+
+        # Use appropriate contract size based on symbol type
+        symbol = pos.symbol.upper()
+        if symbol.startswith("BTC") or symbol.startswith("ETH") or symbol.startswith("SOL") or symbol.startswith("XRP"):
+            # Crypto: volume = actual coin amount, 1:1
+            contract_size = 1
+        elif symbol.endswith("JPY"):
+            # Forex: standard lot
+            contract_size = 100000
+        else:
+            # Default: standard forex lot
+            contract_size = 100000
 
         if pos.side == "buy":
             return diff * pos.volume * contract_size

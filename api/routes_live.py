@@ -14,12 +14,43 @@ from .config import settings
 from .database import get_db, User, Strategy, LiveSession, LiveTrade
 from .schemas import LiveSessionCreate, LiveSessionResponse, LiveTradeResponse
 
+from engine.live_trading.session_registry import get as _get_active_session
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/live", tags=["live-trading"])
 
 # Global registry of running live sessions
 _active_sessions: dict[int, object] = {}
+
+
+def _enrich_session(s_dict: dict) -> dict:
+    """For running sessions, enrich with in-memory data from the engine."""
+    active = _get_active_session(s_dict["id"])
+    if active:
+        # Running session — pull live data from the OrderManager
+        try:
+            trades_info = active.get_trades_info()
+            s_dict["equity"] = trades_info["equity"]
+            s_dict["balance"] = trades_info["balance"]
+            s_dict["daily_pnl"] = trades_info["daily_pnl"]
+            s_dict["total_trades"] = trades_info["total_trades"]
+            s_dict["win_rate"] = trades_info["win_rate"]
+            s_dict["status"] = "running"
+        except Exception:
+            pass  # Fall back to DB values
+    return s_dict
+
+
+def _get_open_trades(active) -> list:
+    """Get open trades from an active LiveSession."""
+    if not active:
+        return []
+    try:
+        trades_info = active.get_trades_info()
+        return trades_info.get("open_trades", [])
+    except Exception:
+        return []
 
 
 @router.get("/sessions")
@@ -54,6 +85,9 @@ def list_live_sessions(
         if s.strategy:
             s_dict["strategy_name"] = s.strategy.name
             s_dict["symbol"] = s.strategy.symbol
+
+        # Enrich with in-memory data for running sessions
+        s_dict = _enrich_session(s_dict)
         result.append(s_dict)
     return result
 
@@ -147,6 +181,31 @@ def get_live_session(
     if not session:
         raise HTTPException(404, "Session not found")
 
+    # Check if we have an active in-memory session for this ID
+    active = _get_active_session(session_id)
+
+    if active and active.mode == "paper":
+        # Use in-memory data from the running engine
+        trades_info = active.get_trades_info()
+        return {
+            "session": {
+                "id": session.id,
+                "strategy_id": session.strategy_id,
+                "account_id": session.account_id,
+                "mode": session.mode,
+                "status": "running",
+                "equity": trades_info["equity"],
+                "balance": trades_info["balance"],
+                "daily_pnl": trades_info["daily_pnl"],
+                "total_trades": trades_info["total_trades"],
+                "win_rate": trades_info["win_rate"],
+                "start_time": session.start_time.isoformat() if session.start_time else None,
+                "end_time": None,
+            },
+            "open_trades": trades_info["open_trades"],
+        }
+
+    # Fallback: use database (for stopped sessions or live mode)
     trades = (
         db.query(LiveTrade)
         .filter(LiveTrade.session_id == session_id, LiveTrade.closed == False)
@@ -230,6 +289,58 @@ def get_session_trades(
     if not session:
         raise HTTPException(404, "Session not found")
 
+    # Try in-memory first for running paper sessions
+    active = _get_active_session(session_id)
+    if active and active.mode == "paper":
+        trades_info = active.get_trades_info()
+        all_trades = list(active.order_mgr._open_trades.values())
+        if not closed_only:
+            # Return open trades
+            return [
+                {
+                    "id": t.trade_id,
+                    "metaapi_trade_id": t.trade_id,
+                    "side": t.side,
+                    "entry_time": t.entry_time.isoformat() if t.entry_time else None,
+                    "entry_price": t.entry_price,
+                    "exit_time": None,
+                    "exit_price": None,
+                    "volume": t.volume,
+                    "sl": t.sl,
+                    "tp": t.tp,
+                    "profit": t.profit or 0.0,
+                    "profit_pct": None,
+                    "pips": None,
+                    "reason": t.reason,
+                    "closed": False,
+                }
+                for t in all_trades
+            ]
+        else:
+            # Return closed trades
+            closed = active.order_mgr._closed_trades
+            return [
+                {
+                    "id": t.trade_id,
+                    "metaapi_trade_id": t.trade_id,
+                    "side": t.side,
+                    "entry_time": t.entry_time.isoformat() if t.entry_time else None,
+                    "entry_price": t.entry_price,
+                    "exit_time": t.exit_time.isoformat() if t.exit_time else None,
+                    "exit_price": t.exit_price,
+                    "volume": t.volume,
+                    "sl": t.sl,
+                    "tp": t.tp,
+                    "profit": t.profit or 0.0,
+                    "profit_pct": None,
+                    "pips": None,
+                    "reason": t.reason,
+                    "closed": True,
+                }
+                for t in closed
+            ]
+
+    # Fallback: database
     query = db.query(LiveTrade).filter(
         LiveTrade.session_id == session_id
     )
