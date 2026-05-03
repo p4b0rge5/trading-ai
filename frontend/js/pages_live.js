@@ -47,14 +47,72 @@ async function createSession() {
     }
 }
 
-// ── Load sessions list ───────────────────────────────────────────────
+// ── Polling: auto-refresh running sessions ──────────────────────────
+let _pollTimers = {};
+
 async function loadLiveSessions() {
     try {
         const sessions = await API.get('/api/v1/live/sessions');
         renderSessionsList(sessions);
+
+        // Clear old timers, start fresh polling for running sessions
+        for (const id in _pollTimers) clearInterval(_pollTimers[id]);
+        _pollTimers = {};
+
+        for (const s of sessions) {
+            if (s.status === 'running') {
+                _pollTimers[s.id] = setInterval(async () => {
+                    try {
+                        const data = await API.get(`/api/v1/live/sessions/${s.id}`);
+                        updateSessionCard(s.id, data.session);
+
+                        // Check for new trades → play sound
+                        if (data.open_trades && data.open_trades.length > 0) {
+                            TradeAudio.checkNewTrades(s.id, data.open_trades);
+                        }
+                    } catch (e) {
+                        console.warn(`[Live] Poll error session ${s.id}:`, e.message);
+                    }
+                }, 10000); // Refresh every 10s for running sessions
+            }
+        }
     } catch (e) {
         document.getElementById('live-sessions-list').innerHTML = `
             <div class="empty-state">Erro ao carregar sessões: ${e.message}</div>`;
+    }
+}
+
+// ── Update a single session card in-place ────────────────────────────
+function updateSessionCard(sessionId, session) {
+    const card = document.querySelector(`[data-session-id="${sessionId}"]`);
+    if (!card) return;
+
+    const statsRow = card.querySelector('.live-session-stats');
+    if (statsRow) {
+        statsRow.innerHTML = `
+            <div class="stat-item">
+                <div class="stat-label">Equity</div>
+                <div class="stat-value">${formatCurrency(session.equity || 0)}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value">${formatCurrency(session.balance || 0)}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Daily PnL</div>
+                <div class="stat-value ${session.daily_pnl >= 0 ? 'text-green' : 'text-red'}">
+                    ${formatPct(session.daily_pnl || 0)}
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Trades</div>
+                <div class="stat-value">${session.total_trades || 0}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value">${(session.win_rate || 0).toFixed(1)}%</div>
+            </div>
+        `;
     }
 }
 
@@ -77,7 +135,7 @@ function renderSessionsList(sessions) {
         const statusClass = s.status === 'running' ? 'badge-green' : 'badge-gray';
         const modeIcon = s.mode === 'live' ? '🔴' : '🟡';
         return `
-        <div class="live-session-card">
+        <div class="live-session-card" data-session-id="${s.id}">
             <div class="live-session-header">
                 <div class="live-session-title">
                     <span style="font-size:20px">${modeIcon}</span>
@@ -134,6 +192,11 @@ async function viewSessionDetail(sessionId) {
 function renderSessionDetail(data) {
     const session = data.session;
     const openTrades = data.open_trades || [];
+
+    // Check for new trades → play sound
+    if (openTrades.length > 0) {
+        TradeAudio.checkNewTrades(session.id, openTrades);
+    }
 
     const tradesHtml = openTrades.length > 0 ? openTrades.map(t => `
         <tr>
@@ -239,13 +302,35 @@ document.addEventListener('click', (e) => {
     if (e.target.id === 'live-modal') closeLiveModal();
 });
 
+// ── Sound toggle helper ──────────────────────────────────────────────
+function toggleTradeSound() {
+    const on = TradeAudio.toggle();
+    const btn = document.getElementById('sound-toggle-btn');
+    if (btn) {
+        btn.textContent = on ? '🔊 Sons: ON' : '🔇 Sons: OFF';
+    }
+    Toast.success(on ? 'Sons ativados 🔊' : 'Sons desativados 🔇');
+}
+
 // ── Page Render ──────────────────────────────────────────────────────
 async function renderLivePage(app) {
+    // Resume audio context on user interaction (browser policy)
+    if (typeof TradeAudio !== 'undefined' && TradeAudio.context) {
+        TradeAudio.context.resume?.();
+    }
+
+    const soundOn = typeof TradeAudio !== 'undefined' && TradeAudio.enabled;
+
     app.innerHTML = renderLayout(`
         <div class="page">
             <div class="page-header">
                 <h1>📡 Live Trading</h1>
-                <button class="btn btn-primary" onclick="openLiveModal()">+ Nova Sessão</button>
+                <div style="display:flex;gap:8px;">
+                    <button id="sound-toggle-btn" class="btn btn-sm btn-secondary" onclick="toggleTradeSound()">
+                        ${soundOn ? '🔊 Sons: ON' : '🔇 Sons: OFF'}
+                    </button>
+                    <button class="btn btn-primary" onclick="openLiveModal()">+ Nova Sessão</button>
+                </div>
             </div>
 
             <div id="live-sessions-list">
@@ -303,70 +388,6 @@ async function renderLivePage(app) {
             </div>
         </div>
     `);
-
-    // Override viewSessionDetail to use the panel instead of inline
-    const origView = window.viewSessionDetail;
-    window.viewSessionDetail = async function(sessionId) {
-        try {
-            const data = await API.get(`/api/v1/live/sessions/${sessionId}`);
-            const session = data.session;
-            const openTrades = data.open_trades || [];
-
-            const tradesHtml = openTrades.length > 0 ? openTrades.map(t => `
-                <tr>
-                    <td>${t.side.toUpperCase()}</td>
-                    <td>${formatNumber(t.entry_price, 5)}</td>
-                    <td>${t.volume}</td>
-                    <td>${t.sl ? formatNumber(t.sl, 5) : '—'}</td>
-                    <td>${t.tp ? formatNumber(t.tp, 5) : '—'}</td>
-                    <td class="${(t.profit || 0) >= 0 ? 'text-green' : 'text-red'}">
-                        ${t.profit !== null ? formatCurrency(t.profit) : '—'}
-                    </td>
-                </tr>
-            `).join('') : `<tr><td colspan="6" class="empty-state">Nenhuma ordem aberta</td></tr>`;
-
-            document.getElementById('detail-body').innerHTML = `
-                <div class="detail-stats-row">
-                    <div class="stat-card">
-                        <div class="stat-label">Equity</div>
-                        <div class="stat-value">${formatCurrency(session.equity || 0)}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Balance</div>
-                        <div class="stat-value">${formatCurrency(session.balance || 0)}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Daily PnL</div>
-                        <div class="stat-value ${session.daily_pnl >= 0 ? 'text-green' : 'text-red'}">
-                            ${formatPct(session.daily_pnl || 0)}
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Trades</div>
-                        <div class="stat-value">${session.total_trades || 0}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Win Rate</div>
-                        <div class="stat-value">${(session.win_rate || 0).toFixed(1)}%</div>
-                    </div>
-                </div>
-                <h3 class="section-title">Ordens Abertas</h3>
-                <div class="table-wrapper">
-                    <table>
-                        <thead><tr><th>Lado</th><th>Entry</th><th>Vol</th><th>SL</th><th>TP</th><th>Profit</th></tr></thead>
-                        <tbody>${tradesHtml}</tbody>
-                    </table>
-                </div>
-                <div class="detail-info">
-                    <p><strong>Modo:</strong> ${session.mode === 'live' ? '🔴 LIVE' : '🟡 Paper'}</p>
-                    <p><strong>Status:</strong> ${session.status}</p>
-                    <p><strong>Iniciada:</strong> ${formatDate(session.start_time)}</p>
-                </div>`;
-            document.getElementById('session-detail-panel').style.display = 'flex';
-        } catch (e) {
-            Toast.error(e.message || 'Erro ao carregar');
-        }
-    };
 
     setActiveNav('/live');
     loadLiveSessions();
