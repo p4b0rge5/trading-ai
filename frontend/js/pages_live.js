@@ -119,12 +119,12 @@ function updateSessionCard(sessionId, session) {
     if (highlightsRow) {
         highlightsRow.innerHTML = `
             <div class="live-highlight-row">
-                <div class="stat-label">equity</div>
+                <div class="stat-label">Equity</div>
                 <div class="live-highlight-value">${formatCurrency(session.equity || 0)}</div>
             </div>
             <div class="live-highlight-divider"></div>
             <div class="live-highlight-row">
-                <div class="stat-label">balance</div>
+                <div class="stat-label">Balance</div>
                 <div class="live-highlight-value">${formatCurrency(session.balance || 0)}</div>
             </div>
         `;
@@ -140,23 +140,23 @@ function updateSessionCard(sessionId, session) {
 
         statsRow.innerHTML = `
             <div class="stat-item">
-                <div class="stat-label">daily p&l</div>
+                <div class="stat-label">Daily P&L</div>
                 <div class="stat-value ${dailyClass}">${formatPnL(session.daily_pnl)}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">unrealized</div>
+                <div class="stat-label">Unrealized</div>
                 <div class="stat-value ${unrealizedClass}">${formatPnL(unrealized)}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">abertas</div>
+                <div class="stat-label">Abertas</div>
                 <div class="stat-value stat-accent">${session.open_trades_count || 0}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">total</div>
+                <div class="stat-label">Total</div>
                 <div class="stat-value">${session.total_trades || 0}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">win rate</div>
+                <div class="stat-label">Win Rate</div>
                 <div class="stat-value">${formatWinRate(session.win_rate || 0, closedCount)}</div>
             </div>
         `;
@@ -192,44 +192,44 @@ function renderSessionsList(sessions) {
                 <div class="live-session-title">
                     <span style="font-size:20px">${modeIcon}</span>
                     <span>${s.strategy_name || 'Sem estratégia'}</span>
-                    <span class="badge badge-yellow" style="font-size:0.7rem">${modeLabel}</span>
-                    <span class="badge badge-green">● Rodando</span>
                 </div>
                 <div class="live-session-actions">
+                    <span class="badge badge-yellow" style="font-size:0.7rem">${modeLabel}</span>
+                    <span class="badge badge-green">● Rodando</span>
                     <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Detalhes</button>
                     <button class="btn btn-sm btn-danger" onclick="stopSession(${s.id})">Parar</button>
                 </div>
             </div>
             <div class="live-session-highlights">
                 <div class="live-highlight-row">
-                    <div class="stat-label">equity</div>
+                    <div class="stat-label">Equity</div>
                     <div class="live-highlight-value">${formatCurrency(s.equity || 0)}</div>
                 </div>
                 <div class="live-highlight-divider"></div>
                 <div class="live-highlight-row">
-                    <div class="stat-label">balance</div>
+                    <div class="stat-label">Balance</div>
                     <div class="live-highlight-value">${formatCurrency(s.balance || 0)}</div>
                 </div>
             </div>
             <div class="live-session-stats">
                 <div class="stat-item">
-                    <div class="stat-label">daily p&l</div>
+                    <div class="stat-label">Daily P&L</div>
                     <div class="stat-value ${dailyClass}">${formatPnL(s.daily_pnl)}</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">unrealized</div>
+                    <div class="stat-label">Unrealized</div>
                     <div class="stat-value ${unrealizedClass}">${formatPnL(unrealized)}</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">abertas</div>
+                    <div class="stat-label">Abertas</div>
                     <div class="stat-value stat-accent">${s.open_trades_count || 0}</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">total</div>
+                    <div class="stat-label">Total</div>
                     <div class="stat-value">${s.total_trades || 0}</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">win rate</div>
+                    <div class="stat-label">Win Rate</div>
                     <div class="stat-value">${formatWinRate(s.win_rate || 0, closedCount)}</div>
                 </div>
             </div>
@@ -296,31 +296,31 @@ function renderSessionDetail(data) {
     document.getElementById('detail-body').innerHTML = `
         <div class="detail-stats-row">
             <div class="stat-card">
-                <div class="stat-label">equity</div>
+                <div class="stat-label">Equity</div>
                 <div class="stat-value">${formatCurrency(session.equity || 0)}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">balance</div>
+                <div class="stat-label">Balance</div>
                 <div class="stat-value">${formatCurrency(session.balance || 0)}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">daily p&l</div>
+                <div class="stat-label">Daily P&L</div>
                 <div class="stat-value ${session.daily_pnl > 0 ? 'text-green' : session.daily_pnl < 0 ? 'text-red' : ''}">
                     ${formatPnL(session.daily_pnl)} (${(session.daily_pnl_pct || 0).toFixed(2)}%)
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">unrealized p&l</div>
+                <div class="stat-label">Unrealized P&L</div>
                 <div class="stat-value ${unrealizedClass}">
                     ${formatPnL(unrealized)}
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">abertas / total</div>
+                <div class="stat-label">Abertas / Total</div>
                 <div class="stat-value">${session.open_trades_count || 0} / ${session.total_trades || 0}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">win rate</div>
+                <div class="stat-label">Win Rate</div>
                 <div class="stat-value">${formatWinRate(session.win_rate || 0, closedCount)}</div>
             </div>
         </div>
