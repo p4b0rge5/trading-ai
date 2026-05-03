@@ -419,14 +419,29 @@ class LiveEngine:
                     # Check if it's actually newer than our last bar
                     if self._buffer and new_bar.timestamp == self._buffer[-1].timestamp:
                         # Same bar — update close price if changed
-                        if abs(new_bar.close - self._buffer[-1].close) > 1e-8:
+                        price_changed = abs(new_bar.close - self._buffer[-1].close) > 1e-8
+                        if price_changed:
                             self._buffer[-1].close = new_bar.close
                             self._buffer[-1].high = max(self._buffer[-1].high, new_bar.close)
                             self._buffer[-1].low = min(self._buffer[-1].low, new_bar.close)
                             self._evaluate(force=True)
                             logger.info(f"Poll: updated close={new_bar.close:.5f}, buffer={len(self._buffer)}, trades={len(self.order_manager._open_trades)}")
                         else:
-                            logger.debug(f"Poll: no change, buffer={len(self._buffer)}")
+                            # yfinance bar same — but check if live price differs
+                            # (yfinance may not have updated the forming candle yet)
+                            live_price = get_current_price(self.spec.symbol)
+                            if live_price:
+                                live_changed = abs(live_price - self._buffer[-1].close) > 1e-8
+                                if live_changed:
+                                    self._buffer[-1].close = live_price
+                                    self._buffer[-1].high = max(self._buffer[-1].high, live_price)
+                                    self._buffer[-1].low = min(self._buffer[-1].low, live_price)
+                                    self._evaluate(force=True)
+                                    logger.info(f"Poll: live price update close={live_price:.5f}, trades={len(self.order_manager._open_trades)}")
+                                else:
+                                    logger.debug(f"Poll: no change, buffer={len(self._buffer)}")
+                            else:
+                                logger.debug(f"Poll: no change, buffer={len(self._buffer)}")
                     else:
                         self._add_bar_to_buffer(new_bar)
                         self._evaluate()

@@ -497,8 +497,8 @@ class PaperTradingClient:
             side=side,
             entry_price=fill_price,
             volume=volume,
-            sl=sl if sl > 0 else None,
-            tp=tp if tp > 0 else None,
+            sl=sl if sl and sl > 0 else None,
+            tp=tp if tp and tp > 0 else None,
             entry_time=entry_time,
             reason=comment,
         )

@@ -160,7 +160,7 @@ class OrderManager:
             return trade
 
         except Exception as e:
-            logger.error(f"Failed to execute signal: {e}")
+            logger.error(f"Failed to execute signal: {e}", exc_info=True)
             return None
 
     async def close_trade(self, trade_id: str, reason: str = "") -> Optional[OpenTrade]:
@@ -265,10 +265,15 @@ class OrderManager:
                 tp = entry_price + direction * pip_value
 
             elif cond.exit_type == self._ExitType.ATR_STOP:
-                # ATR stop will be computed dynamically at bar time
-                # For now, use a default SL
-                if cond.atr_multiplier:
-                    pass  # Live ATR will be computed in live_engine
+                # ATR stop — use a reasonable default since we don't have
+                # live ATR here. For BTC, use ~0.1% as default SL
+                atr_pct = 0.001  # 0.1% default
+                pip_value = entry_price * atr_pct
+                sl = entry_price - direction * pip_value
+
+                # If TP multiplier also set, calculate TP
+                if hasattr(cond, 'atr_multiplier') and cond.atr_multiplier:
+                    tp = entry_price + direction * pip_value * (cond.atr_multiplier * 2)
 
         return sl, tp
 
