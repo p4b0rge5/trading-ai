@@ -275,7 +275,7 @@ def _numpy_atr(
     closes: np.ndarray,
     period: int,
 ) -> np.ndarray:
-    prev_closes = np.concatenate([[closes[0]]], closes[:-1])
+    prev_closes = np.concatenate([[closes[0]], closes[:-1]])
     tr = np.maximum(
         highs - lows,
         np.maximum(
