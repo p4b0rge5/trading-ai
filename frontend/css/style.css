@@ -89,9 +89,10 @@ html, body {
 
 body {
     font-family: var(--font);
+    font-size: 14px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.6;
+    line-height: 1.5;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
 }
@@ -394,16 +395,15 @@ body {
 }
 
 .stat-card .stat-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     color: var(--text-muted);
-    margin-bottom: 8px;
-    text-transform: uppercase;
+    margin-bottom: 6px;
     letter-spacing: 0.3px;
 }
 
 .stat-card .stat-value {
-    font-size: clamp(18px, 4.5vw, 24px);
+    font-size: clamp(16px, 4vw, 22px);
     font-weight: 700;
     letter-spacing: -0.5px;
     line-height: 1.2;
@@ -850,27 +850,33 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
 
 .live-session-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
 }
 
 .live-session-highlights {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing);
     padding: var(--spacing) 0;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
     margin-bottom: var(--spacing);
 }
 
-.live-highlight {
-    text-align: center;
+.live-highlight-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+}
+
+.live-highlight-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
 }
 
 .live-highlight-value {
-    font-size: 1.6rem;
-    font-weight: 800;
+    font-size: 1.5rem;
+    font-weight: 700;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
 }
@@ -883,16 +889,15 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
 }
 
 .stat-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
 }
 
 .stat-value {
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 0.95rem;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
@@ -1093,17 +1098,16 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
         gap: 8px;
     }
 
-    .live-session-stats {
-        grid-template-columns: repeat(3, 1fr);
-    }
-
     .live-session-highlights {
         padding: var(--spacing-half) 0;
-        gap: var(--spacing-half);
     }
 
     .live-highlight-value {
         font-size: 1.3rem;
+    }
+
+    .live-session-stats {
+        grid-template-columns: repeat(3, 1fr);
     }
 
     /* Mobile: two-col grids → single col */

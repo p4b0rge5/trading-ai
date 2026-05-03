@@ -174,7 +174,7 @@ const Router = {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatCurrency(n) {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(n);
+    return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
 function formatPct(n) {
