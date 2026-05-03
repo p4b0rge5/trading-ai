@@ -194,10 +194,11 @@ function renderSessionsList(sessions) {
                     <span>${s.strategy_name || 'Sem estratégia'}</span>
                 </div>
                 <div class="live-session-actions">
-                    <span class="badge badge-yellow" style="font-size:0.7rem">${modeLabel}</span>
-                    <span class="badge badge-green">● Rodando</span>
                     <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Detalhes</button>
                     <button class="btn btn-sm btn-danger" onclick="stopSession(${s.id})">Parar</button>
+                    <span style="flex:1"></span>
+                    <span class="badge badge-yellow" style="font-size:0.7rem">${modeLabel}</span>
+                    <span class="badge badge-green">● Rodando</span>
                 </div>
             </div>
             <div class="live-session-highlights">
