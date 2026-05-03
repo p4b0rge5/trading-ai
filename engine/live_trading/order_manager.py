@@ -49,13 +49,15 @@ class OrderManager:
     calculates position sizing and SL/TP, then executes orders.
     """
 
-    def __init__(self, metaapi_client, strategy_spec, session_id: int):
+    def __init__(self, metaapi_client, strategy_spec, session_id: int,
+                 notification_service=None):
         from engine.models import StrategySpec, ExitType
 
         self.metaapi = metaapi_client
         self.spec = strategy_spec
         self.session_id = session_id
         self.risk = strategy_spec.risk_management
+        self.notifications = notification_service
 
         self._open_trades: dict[str, OpenTrade] = {}
         self._closed_trades: list[OpenTrade] = []
@@ -137,6 +139,24 @@ class OrderManager:
                 f"Signal executed: {side.upper()} {self.spec.symbol} "
                 f"@ {price} (id={trade_id}, sl={sl}, tp={tp})"
             )
+
+            # ── Notification ────────────────────────────────────────────
+            if self.notifications:
+                asyncio.create_task(
+                    self.notifications.notify(
+                        event_type="trade_opened",
+                        session_id=self.session_id,
+                        strategy_name=getattr(self.spec, 'name', ''),
+                        symbol=self.spec.symbol,
+                        side=side,
+                        entry_price=price,
+                        message=f"Trade opened: {side.upper()} {self.spec.symbol} @ {price} (id={trade_id})",
+                        trade_id=trade_id,
+                        sl=sl,
+                        tp=tp,
+                    )
+                )
+
             return trade
 
         except Exception as e:
@@ -163,6 +183,25 @@ class OrderManager:
                 del self._open_trades[trade_id]
                 self._closed_trades.append(trade)
                 logger.info(f"Trade {trade_id} closed: {reason}")
+
+                # ── Notification ────────────────────────────────────────────
+                if self.notifications:
+                    asyncio.create_task(
+                        self.notifications.notify(
+                            event_type="trade_closed",
+                            session_id=self.session_id,
+                            strategy_name=getattr(self.spec, 'name', ''),
+                            symbol=trade.symbol,
+                            side=trade.side,
+                            entry_price=trade.entry_price,
+                            message=f"Trade closed: {trade.side.upper()} {trade.symbol} @ {trade.exit_price} (profit={trade.profit})",
+                            trade_id=trade_id,
+                            exit_price=trade.exit_price,
+                            profit=trade.profit,
+                            reason=reason,
+                        )
+                    )
+
                 return trade
             return trade
         except Exception as e:

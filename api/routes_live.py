@@ -109,6 +109,7 @@ def create_live_session(
         db=db,
         session_id=session.id,
         mode=request.mode,
+        webhook_url=request.webhook_url,
     )
 
     # Store in registry and start in background thread

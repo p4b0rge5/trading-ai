@@ -25,6 +25,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional, Any
@@ -49,7 +50,8 @@ class LiveSession:
     """
 
     def __init__(self, api_token: str, account_id: Any, strategy_spec: StrategySpec,
-                 db: Session, session_id: int, mode: str = "paper"):
+                 db: Session, session_id: int, mode: str = "paper",
+                 webhook_url: str | None = None):
         self.api_token = api_token
         self.account_id = account_id
         self.strategy_spec = strategy_spec
@@ -61,6 +63,14 @@ class LiveSession:
         self.engine: Optional[LiveEngine] = None
         self.order_mgr: Optional[OrderManager] = None
         self._running = False
+
+        # Notification service
+        if webhook_url:
+            from engine.notifications import NotificationService
+            self.notifications = NotificationService(webhook_url=webhook_url)
+        else:
+            from engine.notifications import NotificationService
+            self.notifications = NotificationService()
 
     async def start(self):
         """Start the session: connect to data source, init engine, begin trading."""
@@ -84,8 +94,9 @@ class LiveSession:
         if not ok:
             raise RuntimeError("Failed to initialize paper trading")
 
-        # 3. Create order manager
-        self.order_mgr = OrderManager(self.client, self.strategy_spec, self.session_id)
+        # 3. Create order manager with notification service
+        self.order_mgr = OrderManager(self.client, self.strategy_spec, self.session_id,
+                                     notification_service=self.notifications)
 
         # 4. Create live engine
         self.engine = LiveEngine(
@@ -97,6 +108,20 @@ class LiveSession:
 
         # 5. Start engine
         await self.engine.start()
+
+        # 6. Fire session_started notification
+        if self.notifications:
+            asyncio.create_task(
+                self.notifications.notify(
+                    event_type="session_started",
+                    session_id=self.session_id,
+                    strategy_name=self.strategy_spec.name,
+                    symbol=self.strategy_spec.symbol,
+                    side="",
+                    entry_price=0,
+                    message=f"Session started: {self.strategy_spec.name} ({self.mode} mode)",
+                )
+            )
 
         self._running = True
         logger.info(
@@ -119,8 +144,9 @@ class LiveSession:
         if not ok:
             raise RuntimeError(f"Failed to connect to MetaApi account {self.account_id}")
 
-        # 3. Create order manager
-        self.order_mgr = OrderManager(self.client, self.strategy_spec, self.session_id)
+        # 3. Create order manager with notification service
+        self.order_mgr = OrderManager(self.client, self.strategy_spec, self.session_id,
+                                     notification_service=self.notifications)
 
         # 4. Create live engine
         self.engine = LiveEngine(
@@ -132,6 +158,21 @@ class LiveSession:
 
         # 5. Start engine
         await self.engine.start()
+
+        # 6. Fire session_started notification
+        if self.notifications:
+            import asyncio
+            asyncio.create_task(
+                self.notifications.notify(
+                    event_type="session_started",
+                    session_id=self.session_id,
+                    strategy_name=self.strategy_spec.name,
+                    symbol=self.strategy_spec.symbol,
+                    side="",
+                    entry_price=0,
+                    message=f"Session started: {self.strategy_spec.name} (live mode)",
+                )
+            )
 
         self._running = True
         logger.info(
@@ -157,6 +198,20 @@ class LiveSession:
 
         if self.client:
             await self.client.stop()
+
+        # Fire session_stopped notification
+        if self.notifications:
+            asyncio.create_task(
+                self.notifications.notify(
+                    event_type="session_stopped",
+                    session_id=self.session_id,
+                    strategy_name=self.strategy_spec.name,
+                    symbol=self.strategy_spec.symbol,
+                    side="",
+                    entry_price=0,
+                    message=f"Session stopped: {self.strategy_spec.name}",
+                )
+            )
 
         logger.info(f"LiveSession {self.session_id} stopped")
 

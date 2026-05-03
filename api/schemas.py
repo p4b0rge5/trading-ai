@@ -134,6 +134,9 @@ class LiveSessionCreate(BaseModel):
         default=None, description="MetaApi account ID (required for live mode)"
     )
     mode: str = Field(default="paper", description="paper or live")
+    webhook_url: Optional[str] = Field(
+        default=None, description="HTTP POST URL for trade notifications (optional)"
+    )
 
 
 class LiveSessionResponse(BaseModel):
