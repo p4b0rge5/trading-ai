@@ -177,12 +177,22 @@ class StrategyInterpreter:
                 cond.description or f"{cond.condition_type.value}({cond.indicator.value})"
             )
 
-        # Determine side: crossover = buy, crossunder = sell
-        side = "buy"
+        # Determine side from the primary crossover condition:
+        # - CROSSEOVER (fast goes above slow) → buy
+        # - CROSSUNDER (fast goes below slow) → sell
+        # - Threshold-only (no crossover/under) → buy
+        crossover_cond = None
         for cond in self.spec.entry_conditions:
-            if cond.condition_type == ConditionType.CROSSUNDER:
-                side = "sell"
+            if cond.condition_type in (ConditionType.CROSSEOVER, ConditionType.CROSSUNDER):
+                crossover_cond = cond
                 break
+
+        if crossover_cond is None:
+            side = "buy"
+        elif crossover_cond.condition_type == ConditionType.CROSSUNDER:
+            side = "sell"
+        else:
+            side = "buy"
 
         return {
             "side": side,

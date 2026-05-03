@@ -322,35 +322,34 @@ class LiveEngine:
             start_bar = len(df) - 2
             trades = self.interpreter.run(df, start_from=start_bar, live_mode=True)
 
+            # Build set of existing sides that are open (prevents duplicates)
+            existing_open_sides = {t.side for t in self.order_manager._open_trades.values()}
+
             # Filter: only trades from the most recent bars
             last_bar_ts = self._buffer[-1].timestamp
-            existing_keys = set(self.order_manager._open_trades.keys())
 
             for trade in trades:
                 # Process closed trades — update order_manager
                 if trade.exit_time is not None:
                     # This is a closed trade from the evaluation window.
                     # Check if we already have this trade open and need to close it.
-                    trade_key = f"{trade.side}_{self.spec.symbol}"
-                    if trade_key in existing_keys:
-                        # Try to match by entry_time and close it
-                        for tid, ot in list(self.order_manager._open_trades.items()):
-                            if ot.entry_time == trade.entry_time and ot.side == trade.side:
-                                asyncio.create_task(
-                                    self.order_manager.close_trade(
-                                        tid, trade.exit_price, trade.reason or "exit"
-                                    )
+                    for tid, ot in list(self.order_manager._open_trades.items()):
+                        if ot.entry_time == trade.entry_time and ot.side == trade.side:
+                            asyncio.create_task(
+                                self.order_manager.close_trade(
+                                    tid, trade.exit_price, trade.reason or "exit"
                                 )
-                                logger.info(
-                                    f"Trade {tid} closed via interpreter: "
-                                    f"{trade.side} {trade.reason} @ {trade.exit_price}"
-                                )
-                                break
+                            )
+                            logger.info(
+                                f"Trade {tid} closed via interpreter: "
+                                f"{trade.side} {trade.reason} @ {trade.exit_price}"
+                            )
+                            existing_open_sides.discard(ot.side)
+                            break
                     continue
 
                 # Open trade — this is a new signal
-                trade_key = f"{trade.side}_{self.spec.symbol}"
-                if trade_key not in existing_keys:
+                if trade.side not in existing_open_sides:
                     signal = {
                         'side': trade.side,
                         'price': trade.entry_price,
@@ -359,7 +358,7 @@ class LiveEngine:
                     asyncio.create_task(
                         self.order_manager.execute_signal(signal)
                     )
-                    existing_keys.add(trade_key)
+                    existing_open_sides.add(trade.side)
                     logger.info(
                         f"NEW SIGNAL: {trade.side.upper()} {self.spec.symbol} "
                         f"@ {trade.entry_price} ({trade.reason})"
