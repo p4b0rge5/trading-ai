@@ -192,6 +192,7 @@ function renderSessionsList(sessions) {
                 <div class="live-session-title">
                     <span style="font-size:20px">${modeIcon}</span>
                     <span>${s.strategy_name || 'Sem estratégia'}</span>
+                    <span class="strategy-num">#${s.strategy_id}</span>
                 </div>
                 <div class="live-session-actions">
                     <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Detalhes</button>

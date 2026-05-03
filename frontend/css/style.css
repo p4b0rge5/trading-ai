@@ -843,6 +843,15 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
     font-weight: 600;
 }
 
+.strategy-num {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-glow);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
 .live-session-actions {
     display: flex;
     align-items: center;
