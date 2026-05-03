@@ -258,37 +258,41 @@ function renderSessionDetail(data) {
         TradeAudio.checkNewTrades(session.id, openTrades);
     }
 
-    // Open trades table
+    // Open trades as cards
     const openTradesHtml = openTrades.length > 0 ? openTrades.map(t => `
-        <tr class="trade-open">
-            <td><span class="badge ${t.side === 'buy' ? 'badge-green' : 'badge-red'}">${t.side.toUpperCase()}</span></td>
-            <td>${formatNumber(t.entry_price, 2)}</td>
-            <td>${t.current_price ? formatNumber(t.current_price, 2) : '—'}</td>
-            <td>${t.volume}</td>
-            <td>${t.sl ? formatNumber(t.sl, 2) : '—'}</td>
-            <td>${t.tp ? formatNumber(t.tp, 2) : '—'}</td>
-            <td class="${(t.profit || 0) >= 0 ? 'text-green' : 'text-red'}">
-                ${formatPnL(t.profit || 0)}
-            </td>
-            <td class="trade-age">${tradeAge(t.entry_time)}</td>
-        </tr>
-    `).join('') : `<tr><td colspan="8" class="empty-state">Nenhuma ordem aberta</td></tr>`;
+        <div class="trade-card">
+            <div class="trade-card-header">
+                <span class="badge ${t.side === 'buy' ? 'badge-green' : 'badge-red'}">${t.side.toUpperCase()}</span>
+                <span class="trade-card-pnl ${(t.profit || 0) >= 0 ? 'text-green' : 'text-red'}">${formatPnL(t.profit || 0)}</span>
+            </div>
+            <div class="trade-card-grid">
+                <div class="trade-card-field"><span class="field-label">Entry</span><span class="field-value">${formatNumber(t.entry_price, 2)}</span></div>
+                <div class="trade-card-field"><span class="field-label">Preço Atual</span><span class="field-value">${t.current_price ? formatNumber(t.current_price, 2) : '—'}</span></div>
+                <div class="trade-card-field"><span class="field-label">Vol</span><span class="field-value">${t.volume}</span></div>
+                <div class="trade-card-field"><span class="field-label">SL</span><span class="field-value">${t.sl ? formatNumber(t.sl, 2) : '—'}</span></div>
+                <div class="trade-card-field"><span class="field-label">TP</span><span class="field-value">${t.tp ? formatNumber(t.tp, 2) : '—'}</span></div>
+                <div class="trade-card-field"><span class="field-label">Tempo</span><span class="field-value trade-age">${tradeAge(t.entry_time)}</span></div>
+            </div>
+        </div>
+    `).join('') : `<div class="trade-card-empty">Nenhuma ordem aberta</div>`;
 
-    // Closed trades table
+    // Closed trades as cards
     const closedTradesHtml = closedTrades.length > 0 ? closedTrades.map(t => `
-        <tr class="trade-closed">
-            <td><span class="badge ${t.side === 'buy' ? 'badge-green' : 'badge-red'}">${t.side.toUpperCase()}</span></td>
-            <td>${formatNumber(t.entry_price, 2)}</td>
-            <td>${t.exit_price ? formatNumber(t.exit_price, 2) : '—'}</td>
-            <td>${t.volume}</td>
-            <td>${t.sl ? formatNumber(t.sl, 2) : '—'}</td>
-            <td>${t.tp ? formatNumber(t.tp, 2) : '—'}</td>
-            <td class="${(t.profit || 0) >= 0 ? 'text-green' : 'text-red'}">
-                ${formatPnL(t.profit || 0)}
-            </td>
-            <td>${t.exit_time ? formatDate(t.exit_time) : '—'}</td>
-        </tr>
-    `).join('') : `<tr><td colspan="8" class="empty-state">Nenhuma ordem fechada</td></tr>`;
+        <div class="trade-card trade-card-closed">
+            <div class="trade-card-header">
+                <span class="badge ${t.side === 'buy' ? 'badge-green' : 'badge-red'}">${t.side.toUpperCase()}</span>
+                <span class="trade-card-pnl ${(t.profit || 0) >= 0 ? 'text-green' : 'text-red'}">${formatPnL(t.profit || 0)}</span>
+            </div>
+            <div class="trade-card-grid">
+                <div class="trade-card-field"><span class="field-label">Entry</span><span class="field-value">${formatNumber(t.entry_price, 2)}</span></div>
+                <div class="trade-card-field"><span class="field-label">Exit</span><span class="field-value">${t.exit_price ? formatNumber(t.exit_price, 2) : '—'}</span></div>
+                <div class="trade-card-field"><span class="field-label">Vol</span><span class="field-value">${t.volume}</span></div>
+                <div class="trade-card-field"><span class="field-label">SL</span><span class="field-value">${t.sl ? formatNumber(t.sl, 2) : '—'}</span></div>
+                <div class="trade-card-field"><span class="field-label">TP</span><span class="field-value">${t.tp ? formatNumber(t.tp, 2) : '—'}</span></div>
+                <div class="trade-card-field"><span class="field-label">Fechada em</span><span class="field-value">${t.exit_time ? formatDate(t.exit_time) : '—'}</span></div>
+            </div>
+        </div>
+    `).join('') : `<div class="trade-card-empty">Nenhuma ordem fechada</div>`;
 
     const unrealized = session.unrealized_pnl || 0;
     const unrealizedClass = unrealized >= 0 ? 'text-green' : 'text-red';
@@ -327,43 +331,11 @@ function renderSessionDetail(data) {
         </div>
 
         <h3 class="section-title">Ordens Abertas (${openTrades.length})</h3>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Lado</th>
-                        <th>Entry</th>
-                        <th>Preço Atual</th>
-                        <th>Vol</th>
-                        <th>SL</th>
-                        <th>TP</th>
-                        <th>P&L</th>
-                        <th>Tempo</th>
-                    </tr>
-                </thead>
-                <tbody>${openTradesHtml}</tbody>
-            </table>
-        </div>
+        <div class="trade-cards-grid">${openTradesHtml}</div>
 
         ${closedTrades.length > 0 ? `
         <h3 class="section-title">Histórico Fechadas (${closedTrades.length})</h3>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Lado</th>
-                        <th>Entry</th>
-                        <th>Exit</th>
-                        <th>Vol</th>
-                        <th>SL</th>
-                        <th>TP</th>
-                        <th>P&L</th>
-                        <th>Fechada em</th>
-                    </tr>
-                </thead>
-                <tbody>${closedTradesHtml}</tbody>
-            </table>
-        </div>
+        <div class="trade-cards-grid">${closedTradesHtml}</div>
         ` : ''}
 
         <div class="detail-info">

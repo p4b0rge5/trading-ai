@@ -924,18 +924,99 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
     margin-bottom: var(--spacing);
 }
 
-.trade-open td {
-    background: rgba(16,185,129,0.04);
-}
-
-.trade-closed td {
-    opacity: 0.75;
-}
-
 .trade-age {
     color: var(--text-muted);
     font-size: 0.85rem;
     font-variant-numeric: tabular-nums;
+}
+
+/* ── Trade Cards ─────────────────────────────────────────────── */
+.trade-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-half);
+    margin-bottom: var(--spacing);
+}
+
+.trade-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.trade-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+.trade-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.trade-card-pnl {
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.trade-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+.trade-card-field {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+.trade-card-field:nth-child(odd) {
+    border-right: 1px solid var(--border);
+}
+.trade-card-field:nth-child(n+5) {
+    border-bottom: none;
+}
+.trade-card-field:nth-last-child(-n+2) {
+    border-bottom: none;
+}
+
+.field-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+}
+
+.field-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.trade-card-closed {
+    opacity: 0.7;
+}
+.trade-card-closed:hover {
+    opacity: 1;
+}
+
+.trade-card-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--spacing);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    background: var(--bg-surface);
+    border-radius: var(--radius);
 }
 
 .section-title {
