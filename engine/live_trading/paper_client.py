@@ -300,6 +300,17 @@ class PaperTradingClient:
             # Update P&L for open positions in this symbol
             self._update_pnl()
 
+            # Dispatch position update for any open positions in this symbol
+            # so the live engine can update trade.profit in real time
+            for pos in list(self._positions.values()):
+                if pos.symbol == symbol and not pos.closed:
+                    unrealized = self._calc_unrealized_pnl(pos, tick["bid"])
+                    self._dispatch("position", {
+                        "positionId": pos.trade_id,
+                        "symbol": pos.symbol,
+                        "profit": round(unrealized, 2),
+                    })
+
             return tick
 
         except Exception as e:

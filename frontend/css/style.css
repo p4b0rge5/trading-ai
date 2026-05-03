@@ -850,8 +850,8 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
 
 .live-session-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: var(--spacing-half);
+    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+    gap: 8px;
 }
 
 .stat-item {
@@ -876,9 +876,30 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
 
 .detail-stats-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: var(--spacing-half);
     margin-bottom: var(--spacing);
+}
+
+.trade-open td {
+    background: rgba(16,185,129,0.04);
+}
+
+.trade-closed td {
+    opacity: 0.75;
+}
+
+.trade-age {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: var(--spacing) 0 calc(var(--spacing-half) + 2px);
+    color: var(--text-primary);
 }
 
 .detail-info {
@@ -1092,7 +1113,7 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
         grid-template-columns: repeat(3, 1fr);
     }
     .detail-stats-row {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     /* Mobile: ensure all grid/flow content fits */

@@ -244,29 +244,9 @@ class LiveSession:
         """Get in-memory trade info (open trades, equity, P&L, counts)."""
         if not self.order_mgr:
             return {"open_trades": [], "total_trades": 0, "win_rate": 0.0,
-                    "equity": 0.0, "balance": 0.0, "daily_pnl": 0.0}
-
-        # Gather open trades
-        open_trades = []
-        for t in self.order_mgr._open_trades.values():
-            open_trades.append({
-                "id": t.trade_id,
-                "metaapi_trade_id": t.trade_id,
-                "side": t.side,
-                "entry_time": t.entry_time.isoformat() if t.entry_time else None,
-                "entry_price": t.entry_price,
-                "volume": t.volume,
-                "sl": t.sl,
-                "tp": t.tp,
-                "profit": t.profit or 0.0,
-                "pips": t.pips if hasattr(t, 'pips') else None,
-            })
-
-        # Calculate summary from order_manager
-        all_trades = list(self.order_mgr._open_trades.values()) + self.order_mgr._closed_trades
-        total = len(all_trades)
-        wins = sum(1 for t in self.order_mgr._closed_trades if (t.profit or 0) > 0)
-        win_rate = (wins / total * 100) if total > 0 else 0.0
+                    "equity": 0.0, "balance": 0.0, "daily_pnl": 0.0,
+                    "daily_pnl_pct": 0.0, "unrealized_pnl": 0.0,
+                    "open_trades_count": 0, "closed_trades_count": 0}
 
         # Get equity from paper client
         equity = 0.0
@@ -275,13 +255,68 @@ class LiveSession:
             equity = self.client._equity
             balance = self.client._balance
 
-        daily_pnl = sum(t.profit or 0 for t in self.order_mgr._closed_trades)
+        # Gather open trades with live profit
+        open_trades = []
+        unrealized_pnl = 0.0
+        for t in self.order_mgr._open_trades.values():
+            # Try to get live profit from paper client positions
+            live_profit = t.profit
+            if self.client and hasattr(self.client, '_positions'):
+                pos = self.client._positions.get(t.trade_id)
+                if pos:
+                    tick = self.client._tick_cache.get(pos.symbol, {})
+                    if tick:
+                        price = tick.get("bid", t.entry_price)
+                        live_profit = self.client._calc_unrealized_pnl(pos, price)
+                    elif not live_profit:
+                        # Still use paper client method
+                        live_profit = self.client._calc_unrealized_pnl(pos, t.entry_price)
+
+            unrealized_pnl += (live_profit or 0.0)
+
+            # Get current price for display
+            current_price = None
+            if self.client and hasattr(self.client, '_tick_cache'):
+                tick = self.client._tick_cache.get(t.symbol, {})
+                current_price = tick.get("bid", t.entry_price)
+
+            open_trades.append({
+                "id": t.trade_id,
+                "metaapi_trade_id": t.trade_id,
+                "side": t.side,
+                "entry_time": t.entry_time.isoformat() if t.entry_time else None,
+                "entry_price": t.entry_price,
+                "current_price": current_price,
+                "volume": t.volume,
+                "sl": t.sl,
+                "tp": t.tp,
+                "profit": round(live_profit or 0.0, 2),
+                "pips": t.pips if hasattr(t, 'pips') else None,
+            })
+
+        # Calculate summary
+        open_count = len(self.order_mgr._open_trades)
+        closed_count = len(self.order_mgr._closed_trades)
+        total = open_count + closed_count
+
+        # Win rate based only on closed trades
+        wins = sum(1 for t in self.order_mgr._closed_trades if (t.profit or 0) > 0)
+        win_rate = (wins / closed_count * 100) if closed_count > 0 else 0.0
+
+        # Daily PnL from closed trades + unrealized
+        closed_pnl = sum(t.profit or 0 for t in self.order_mgr._closed_trades)
+        daily_pnl = closed_pnl
+        daily_pnl_pct = (daily_pnl / balance * 100) if balance > 0 else 0.0
 
         return {
             "open_trades": open_trades,
             "total_trades": total,
+            "open_trades_count": open_count,
+            "closed_trades_count": closed_count,
             "win_rate": win_rate,
             "equity": round(equity, 2),
             "balance": round(balance, 2),
             "daily_pnl": round(daily_pnl, 2),
+            "daily_pnl_pct": round(daily_pnl_pct, 2),
+            "unrealized_pnl": round(unrealized_pnl, 2),
         }

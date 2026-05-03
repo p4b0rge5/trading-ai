@@ -33,10 +33,13 @@ def _enrich_session(s_dict: dict) -> dict:
             trades_info = active.get_trades_info()
             s_dict["equity"] = trades_info["equity"]
             s_dict["balance"] = trades_info["balance"]
-            s_dict["daily_pnl"] = trades_info["daily_pnl"]
+            s_dict["daily_pnl"] = trades_info.get("daily_pnl", 0)
+            s_dict["daily_pnl_pct"] = trades_info.get("daily_pnl_pct", 0)
             s_dict["total_trades"] = trades_info["total_trades"]
             s_dict["win_rate"] = trades_info["win_rate"]
             s_dict["status"] = "running"
+            s_dict["open_trades_count"] = trades_info.get("open_trades_count", 0)
+            s_dict["unrealized_pnl"] = trades_info.get("unrealized_pnl", 0)
         except Exception:
             pass  # Fall back to DB values
     return s_dict
@@ -196,13 +199,35 @@ def get_live_session(
                 "status": "running",
                 "equity": trades_info["equity"],
                 "balance": trades_info["balance"],
-                "daily_pnl": trades_info["daily_pnl"],
+                "daily_pnl": trades_info.get("daily_pnl", 0),
+                "daily_pnl_pct": trades_info.get("daily_pnl_pct", 0),
                 "total_trades": trades_info["total_trades"],
+                "open_trades_count": trades_info.get("open_trades_count", 0),
+                "closed_trades_count": trades_info.get("closed_trades_count", 0),
                 "win_rate": trades_info["win_rate"],
+                "unrealized_pnl": trades_info.get("unrealized_pnl", 0),
                 "start_time": session.start_time.isoformat() if session.start_time else None,
                 "end_time": None,
             },
             "open_trades": trades_info["open_trades"],
+            "closed_trades": [
+                {
+                    "id": t.trade_id,
+                    "metaapi_trade_id": t.trade_id,
+                    "side": t.side,
+                    "entry_time": t.entry_time.isoformat() if t.entry_time else None,
+                    "entry_price": t.entry_price,
+                    "exit_time": t.exit_time.isoformat() if t.exit_time else None,
+                    "exit_price": t.exit_price,
+                    "volume": t.volume,
+                    "sl": t.sl,
+                    "tp": t.tp,
+                    "profit": round(t.profit or 0.0, 2),
+                    "reason": t.reason if hasattr(t, 'reason') else '',
+                    "closed": True,
+                }
+                for t in active.order_mgr._closed_trades
+            ],
         }
 
     # Fallback: use database (for stopped sessions or live mode)
