@@ -190,9 +190,8 @@ function renderSessionsList(sessions) {
         <div class="live-session-card" data-session-id="${s.id}">
             <div class="live-session-header">
                 <div class="live-session-title">
-                    <span style="font-size:20px">${modeIcon}</span>
-                    <span>${s.strategy_name || 'Sem estratégia'}</span>
-                    <span class="strategy-num">#${s.strategy_id}</span>
+                    <span class="strategy-num">Estratégia #${s.strategy_id}</span>
+                    <span class="strategy-name-text">${s.strategy_name || 'Sem estratégia'}</span>
                 </div>
                 <div class="live-session-actions">
                     <button class="btn btn-sm btn-secondary" onclick="viewSessionDetail(${s.id})">Detalhes</button>

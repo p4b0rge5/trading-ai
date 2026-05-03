@@ -837,19 +837,21 @@ table tbody tr[style*="cursor:pointer"] { cursor: pointer; }
 
 .live-session-title {
     display: flex;
-    align-items: center;
-    gap: var(--spacing-half);
-    font-size: 1rem;
-    font-weight: 600;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .strategy-num {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    color: var(--accent);
-    background: var(--accent-glow);
-    padding: 2px 8px;
-    border-radius: 4px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+
+.strategy-name-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .live-session-actions {
