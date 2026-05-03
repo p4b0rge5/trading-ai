@@ -259,6 +259,10 @@ function renderSessionDetail(data) {
             <p><strong>Status:</strong> ${session.status}</p>
             <p><strong>Iniciada:</strong> ${formatDate(session.start_time)}</p>
         </div>`;
+
+    // Open the detail panel modal
+    const panel = document.getElementById('session-detail-panel');
+    if (panel) panel.style.display = 'flex';
 }
 
 // ── Stop session ─────────────────────────────────────────────────────
